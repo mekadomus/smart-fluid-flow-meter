@@ -3,6 +3,8 @@ project(smart-fluid-flow-meter-test
   VERSION 0.1.0
   LANGUAGES CXX)
 
+# Needs to be before ../include so it overwrites headers from main
+include_directories(mock/test-mocks/include)
 include_directories(../include)
 include_directories(external/catch2)
 include_directories(mock/esp-idf-mocks)

@@ -11,11 +11,12 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 
+// Only exists so it can be overwritten by test
+#include "configs.h"
+
 BackendService* BackendService::instance = nullptr;
 SemaphoreHandle_t BackendService::IP_SEMPH = NULL;
-const char* BackendService::BACKEND_URL =
-    "https://smart-fluid-flow-meter.mekadomus.com";
-const char* BackendService::MEASUREMENT_API = "/measurement";
+const char* BackendService::MEASUREMENT_API = "/v1/measurement";
 const char* BackendService::TAG = "backend-service";
 esp_netif_t* BackendService::wifi_if = NULL;
 
@@ -96,7 +97,7 @@ int BackendService::post_measurement(const std::string& deviceId,
 
   esp_http_client_config_t config = {};
   char url[100];
-  sprintf(url, "%s%s", BACKEND_URL, MEASUREMENT_API);
+  sprintf(url, "%s%s", CONFIG_BACKEND_URL, MEASUREMENT_API);
   config.url = url;
   config.method = HTTP_METHOD_POST;
   config.crt_bundle_attach = esp_crt_bundle_attach;
