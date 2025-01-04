@@ -17,7 +17,7 @@ LAST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
 
 # Build docker image
 cd frontend
-touch .env
+cp .env.sample .env
 make image-prod
 
 # Publish docker image
