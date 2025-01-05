@@ -14,14 +14,16 @@
     const password = document.getElementById('password') as HTMLFormElement;
 
     password.setCustomValidity('');
+    form.reportValidity();
+
     if (!form.checkValidity()) {
       form.reportValidity();
       return;
     }
 
-    password.setCustomValidity('');
     if (zxcvbn(password.value).score < 3) {
       password.setCustomValidity('Password is too weak');
+      form.reportValidity();
       return;
     }
 
