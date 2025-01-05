@@ -1,4 +1,5 @@
 service:
+  cors_domains: ""
   port: 9899
 database:
   mysql:
