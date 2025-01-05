@@ -3,6 +3,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Service {
+    // Comma separated list of domains that will be enabled for cors
+    pub cors_domains: String,
     pub port: u32,
 }
 
