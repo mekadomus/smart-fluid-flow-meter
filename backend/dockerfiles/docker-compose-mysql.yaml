@@ -15,7 +15,7 @@ services:
     volumes:
       - type: bind
         source: ../assets
-        target: /assets
+        target: /smart-fluid-flow-meter/assets
       - type: bind
         source: ../src
         target: /smart-fluid-flow-meter/src
