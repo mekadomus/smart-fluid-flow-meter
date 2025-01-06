@@ -54,7 +54,10 @@ fn create_cors_layer(settings: Arc<Settings>) -> CorsLayer {
 
     return CorsLayer::new()
         .allow_methods([Method::DELETE, Method::GET, Method::POST, Method::PUT])
-        .allow_headers(["Content-Type".parse().unwrap()])
+        .allow_headers([
+            "Content-Type".parse().unwrap(),
+            "Authorization".parse().unwrap(),
+        ])
         .allow_origin(AllowOrigin::list(cors_domains));
 }
 
