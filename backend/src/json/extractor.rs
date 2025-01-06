@@ -6,7 +6,7 @@ use axum::{
 use crate::error::app_error::AppError;
 
 // Our own JSON extractor that wraps `axum::Json`. This way we can override
-// json rejections and provide error in whichever format we want
+// json rejections and provide an error in whichever format we want
 #[derive(FromRequest)]
 #[from_request(via(axum::Json), rejection(AppError))]
 pub struct Extractor<T>(pub T);

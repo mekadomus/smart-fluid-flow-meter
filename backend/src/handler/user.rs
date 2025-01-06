@@ -1,10 +1,12 @@
-use crate::api::user::{SignUpUserInput, User, UserAuthProvider::Password};
-use crate::error::app_error::{
-    AppError, FailedValidation,
-    ValidationIssue::{Invalid, Required, TooWeak},
+use crate::{
+    api::user::{SignUpUserInput, User, UserAuthProvider::Password},
+    error::app_error::{
+        AppError, FailedValidation,
+        ValidationIssue::{Invalid, Required, TooWeak},
+    },
+    json::extractor::Extractor,
+    AppState,
 };
-use crate::json::extractor::Extractor;
-use crate::AppState;
 
 use axum::extract::State;
 use chrono::Local;
@@ -70,15 +72,20 @@ pub async fn sign_up_user(
         email_verified_at: None,
         recorded_at: Local::now(),
     };
-    let inserted = state.storage.sign_up_user(user).await?;
-
-    // TODO: Send confirmation email
+    let inserted = state
+        .storage
+        .sign_up_user(
+            user.clone(),
+            state.settings.clone(),
+            state.mail_helper.clone(),
+        )
+        .await?;
 
     Ok(Extractor(User {
         id: inserted.id,
         provider: inserted.provider,
         email: inserted.email,
-        name: input.name,
+        name: inserted.name,
         password: None,
         email_verified_at: None,
         recorded_at: inserted.recorded_at,

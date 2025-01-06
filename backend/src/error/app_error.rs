@@ -1,3 +1,6 @@
+use crate::json::extractor::Extractor;
+use crate::storage::error::Error;
+
 use axum::{
     extract::rejection::JsonRejection,
     http::StatusCode,
@@ -5,9 +8,6 @@ use axum::{
 };
 use serde::Serialize;
 use std::fmt;
-
-use crate::json::extractor::Extractor;
-use crate::storage::error::Error;
 
 pub enum AppErrorCode {
     InvalidInput,
@@ -29,7 +29,7 @@ impl fmt::Display for AppErrorCode {
 pub enum AppError {
     // Generic server error
     ServerError,
-    // The request body contained invalid JSON
+    // The request body contained invalid JSON for the given request
     JsonRejection(JsonRejection),
     // Undefined database error
     DatabaseError(Error),
@@ -98,7 +98,7 @@ impl IntoResponse for AppError {
             AppError::JsonRejection(rejection) => (
                 rejection.status(),
                 AppErrorCode::InvalidInput,
-                "Invalid input".to_string(),
+                "Invalid JSON for this endpoint".to_string(),
                 ErrorData::Empty,
             ),
             AppError::DatabaseError(_e) => (

@@ -25,9 +25,17 @@ pub struct Captcha {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Mail {
+    pub api_key: String,
+    pub mailer_name: String,
+    pub mailer_address: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Settings {
     pub captcha: Captcha,
     pub database: Database,
+    pub mail: Mail,
     pub service: Service,
 }
 

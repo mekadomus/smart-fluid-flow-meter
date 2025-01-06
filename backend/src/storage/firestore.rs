@@ -1,17 +1,35 @@
-use crate::api::measurement::Measurement;
-use crate::api::user::User;
-use crate::storage::{error::Error, error::ErrorCode, Storage};
+use crate::{
+    api::{email_verification::EmailVerification, measurement::Measurement, user::User},
+    helper::{mail::MailHelper, token},
+    settings::settings::Settings,
+    storage::{error::Error, error::ErrorCode, Storage},
+};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Local, Timelike};
 use firestore::{
-    errors::FirestoreError::DataConflictError, path, FirestoreDb, FirestoreDbOptions,
-    FirestoreQueryDirection,
+    errors::{
+        BackoffError, FirestoreDatabaseError, FirestoreError,
+        FirestoreError::{DataConflictError, DatabaseError},
+        FirestoreErrorPublicGenericDetails,
+    },
+    path, FirestoreDb, FirestoreDbOptions, FirestoreQueryDirection,
 };
+use futures::FutureExt;
+use std::sync::Arc;
 use tracing::{error, info};
 
+const EMAIL_VERIFICATION_COLLECTION: &'static str = "email_verification";
 const MEASUREMENT_COLLECTION: &'static str = "measurement";
 const USER_COLLECTION: &'static str = "user";
+
+fn database_error(msg: &str) -> BackoffError<FirestoreError> {
+    return BackoffError::permanent(DatabaseError(FirestoreDatabaseError::new(
+        FirestoreErrorPublicGenericDetails::new(msg.to_string()),
+        msg.to_string(),
+        false,
+    )));
+}
 
 #[derive(Clone)]
 pub struct FirestoreStorage {
@@ -164,34 +182,102 @@ impl Storage for FirestoreStorage {
         };
     }
 
-    /// Saves a new user to the DB. The user's e-mail still needs to be verified
-    /// before it can actually be used
-    async fn sign_up_user(&self, user: User) -> Result<User, Error> {
-        let inserted: User = match self
+    /// Saves a new user to the DB, creates an e-mail verification token and sends
+    /// an e-mail for verification. The user needs to verify their e-mail before
+    /// they can use their accout
+    async fn sign_up_user(
+        &self,
+        user: User,
+        settings: Arc<Settings>,
+        mail_helper: Arc<dyn MailHelper>,
+    ) -> Result<User, Error> {
+        // Even though this says, it's a transaction, firestore doesn't really
+        // allow to do this transactionally, so it doesn't really work as a
+        // transaction. Leaving it like this in case we change to a storage
+        // system that allows transactions
+        match self
             .db
-            .fluent()
-            .insert()
-            .into(USER_COLLECTION)
-            .document_id(user.id.clone())
-            .object(&user)
-            .execute()
+            .run_transaction(|db, _| {
+                let u = user.clone();
+                let s = settings.clone();
+                let mh = mail_helper.clone();
+                async move {
+                    let inserted: User = match db
+                        .fluent()
+                        .insert()
+                        .into(USER_COLLECTION)
+                        .document_id(&u.id)
+                        .object(&u)
+                        .execute()
+                        .await
+                    {
+                        Ok(inserted) => inserted,
+                        Err(e) => {
+                            let msg = format!("Error inserting user. {}", e);
+                            return Err::<User, BackoffError<FirestoreError>>(database_error(&msg));
+                        }
+                    };
+
+                    let verification_token = token::alphanumeric(100);
+                    let verification = EmailVerification {
+                        id: inserted.id.clone(),
+                        token: verification_token,
+                        recorded_at: Local::now(),
+                    };
+                    match db
+                        .fluent()
+                        .insert()
+                        .into(EMAIL_VERIFICATION_COLLECTION)
+                        .document_id(&verification.id)
+                        .object(&verification)
+                        .execute::<EmailVerification>()
+                        .await
+                    {
+                        Ok(_) => {
+                            if !mh.sign_up_verification(&s, &u, &verification.token).await {
+                                let msg = "Couldn't send verification email";
+                                return Err(database_error(&msg));
+                            }
+                        }
+                        Err(e) => {
+                            let msg = format!("Error saving verification: {}", e);
+                            return Err(database_error(&msg));
+                        }
+                    };
+
+                    return Ok(inserted);
+                }
+                .boxed()
+            })
             .await
         {
-            Ok(inserted) => inserted,
-            Err(DataConflictError(_)) => {
-                // Most likely, user already exists. Return an opaque error
+            Ok(i) => return Ok(i),
+            Err(e) => {
+                error!("Error signing up user: {}", e);
                 return Err(Error {
                     code: ErrorCode::UndefinedError,
                 });
             }
-            Err(e) => {
-                error!("Error trying to insert user: {}", e);
+        }
+    }
+
+    async fn user_by_id(&self, id: &str) -> Result<Option<User>, Error> {
+        match self
+            .db
+            .fluent()
+            .select()
+            .by_id_in(USER_COLLECTION)
+            .obj()
+            .one(id)
+            .await
+        {
+            Ok(f) => return Ok(f),
+            Err(err) => {
+                println!("Error finding user: {}", err);
                 return Err(Error {
                     code: ErrorCode::UndefinedError,
                 });
             }
         };
-
-        return Ok(inserted);
     }
 }
