@@ -12,7 +12,7 @@ RUN mkdir -p /root/.config
 RUN echo "/vim" | ./do.sh
 
 # Add some telescope ignores specific for this project
-RUN sed -i "s/^.*node_modules.*$/'node_modules'/g" /root/.config/nvim/lua/plugins/telescope.lua
+RUN sed -i "s/^.*node_modules.*$/'node_modules','build'/g" /root/.config/nvim/lua/plugins/telescope.lua
 
 # Terminal customizations
 COPY dev-environments/vim/customizations.sh /root/.customizations.sh
