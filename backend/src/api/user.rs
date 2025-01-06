@@ -6,6 +6,7 @@ use std::fmt;
 pub struct SignUpUserInput {
     pub captcha: String,
     pub email: String,
+    pub name: String,
     pub password: String,
 }
 
@@ -27,6 +28,7 @@ impl fmt::Display for UserAuthProvider {
 pub struct User {
     pub id: String,
     pub provider: UserAuthProvider,
+    pub name: String,
     pub email: String,
     #[serde(skip_serializing)]
     pub password: Option<String>,

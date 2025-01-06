@@ -76,7 +76,7 @@ pub async fn app(
     Router::new()
         .route("/health", get(health_check))
         .route("/v1/measurement", post(save_measurement))
-        .route("/v1/sign_up", post(sign_up_user))
+        .route("/v1/sign-up", post(sign_up_user))
         .with_state(state)
         .layer(cors)
         .layer(

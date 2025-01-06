@@ -1,13 +1,14 @@
 use crate::api::user::{SignUpUserInput, User, UserAuthProvider::Password};
 use crate::error::app_error::{
     AppError, FailedValidation,
-    ValidationIssue::{Invalid, TooWeak},
+    ValidationIssue::{Invalid, Required, TooWeak},
 };
 use crate::json::extractor::Extractor;
 use crate::AppState;
 
 use axum::extract::State;
 use chrono::Local;
+use email_address::EmailAddress;
 
 /**
  * Creates a new user in the system.
@@ -16,12 +17,19 @@ pub async fn sign_up_user(
     State(state): State<AppState>,
     Extractor(input): Extractor<SignUpUserInput>,
 ) -> Result<Extractor<User>, AppError> {
+    let mut validation_errors = vec![];
     if state.user_helper.password_is_weak(&input.password) {
-        let validation_errors = vec![FailedValidation {
+        validation_errors.push(FailedValidation {
             field: "password".to_string(),
             issue: TooWeak,
-        }];
-        return Err(AppError::ValidationError(validation_errors));
+        });
+    }
+
+    if input.name.trim().len() == 0 {
+        validation_errors.push(FailedValidation {
+            field: "name".to_string(),
+            issue: Required,
+        });
     }
 
     if state
@@ -29,10 +37,21 @@ pub async fn sign_up_user(
         .is_bot(&state.settings.captcha.secret, &input.captcha, "userip")
         .await
     {
-        let validation_errors = vec![FailedValidation {
+        validation_errors.push(FailedValidation {
             field: "captcha".to_string(),
             issue: Invalid,
-        }];
+        });
+    }
+
+    let clean_mail = input.email.trim().to_lowercase();
+    if !EmailAddress::is_valid(&clean_mail) {
+        validation_errors.push(FailedValidation {
+            field: "email".to_string(),
+            issue: Invalid,
+        });
+    }
+
+    if !validation_errors.is_empty() {
         return Err(AppError::ValidationError(validation_errors));
     }
 
@@ -41,21 +60,25 @@ pub async fn sign_up_user(
         Err(e) => return Err(e),
     };
 
-    let id = format!("{}+{}", input.email, Password);
+    let id = format!("{}+{}", clean_mail, Password);
     let user = User {
         id,
         provider: Password,
-        email: input.email.clone(),
+        email: clean_mail,
+        name: input.name.clone(),
         password: Some(password_hash),
         email_verified_at: None,
         recorded_at: Local::now(),
     };
     let inserted = state.storage.sign_up_user(user).await?;
 
+    // TODO: Send confirmation email
+
     Ok(Extractor(User {
         id: inserted.id,
         provider: inserted.provider,
-        email: input.email,
+        email: inserted.email,
+        name: input.name,
         password: None,
         email_verified_at: None,
         recorded_at: inserted.recorded_at,
