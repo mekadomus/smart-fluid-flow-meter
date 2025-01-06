@@ -112,13 +112,15 @@ impl Storage for MySqlStorage {
                 id,
                 provider,
                 email,
+                name,
                 password,
                 recorded_at
-            ) VALUES(?, ?, ?, ?, ?)"#,
+            ) VALUES(?, ?, ?, ?, ?, ?)"#,
         )
         .bind(user.id.clone())
         .bind(user.provider.to_string())
         .bind(user.email.clone())
+        .bind(user.name.clone())
         .bind(user.password.clone())
         .bind(user.recorded_at.to_rfc3339())
         .execute(&self.pool)

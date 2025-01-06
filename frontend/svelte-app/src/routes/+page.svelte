@@ -44,7 +44,7 @@
       password: password.value,
       captcha: token
     };
-    const res = await httpPost('/v1/signup', data);
+    const res = await httpPost('/v1/sign-up', data);
     if (res.status === 201 || res.status == 200) {
       alert('good');
     } else {

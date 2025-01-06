@@ -58,6 +58,7 @@ impl From<Vec<FailedValidation>> for AppError {
 #[derive(Serialize)]
 pub enum ValidationIssue {
     Invalid,
+    Required,
     TooWeak,
 }
 

@@ -9,6 +9,7 @@ axum = { version = "0.7.5", features = ["macros"] }
 bcrypt = "0.16.0"
 chrono = { version = "0.4.37", features = ["serde"] }
 config = "0.14.0"
+email_address = "0.2.9"
 firestore = "0.42.0"
 mockall = "0.13.1"
 reqwest = { version = "0.12.9", features = ["json"] }
