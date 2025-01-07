@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.80"
-axum = { version = "0.7.5", features = ["macros"] }
+axum = { version = "0.8.1", features = ["macros"] }
 bcrypt = "0.16.0"
 chrono = { version = "0.4.37", features = ["serde"] }
 config = "0.14.0"
