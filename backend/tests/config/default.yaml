@@ -2,8 +2,6 @@ service:
   cors_domains: ""
   port: 9899
 database:
-  mysql:
-    connection_string: ""
   firestore:
     project_id: ""
     database_id: ""

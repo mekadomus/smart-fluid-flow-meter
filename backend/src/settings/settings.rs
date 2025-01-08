@@ -15,14 +15,8 @@ pub struct Firestore {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Mysql {
-    pub connection_string: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct Database {
     pub firestore: Firestore,
-    pub mysql: Mysql,
 }
 
 #[derive(Debug, Deserialize)]

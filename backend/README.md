@@ -9,22 +9,10 @@ Receives measurements from the meter and stores them in a database.
 The easiest way to run locally is to use:
 
 ```
-make start-mysql
-```
-
-This command uses docker compose to start a MySQL container with the latest schema and another container running the backend. The backend will use `.env.sample` for configuration.
-
-If you need more granular control over the settings, create your own `.env` file:
-
-```
-cp .env.sample .env
-```
-
-Update the configurations accordingly and start the service.
-
-```
 make start
 ```
+
+This command uses docker compose to start a firestore emulator container and another container running the backend. The backend will use `.env.sample` for configuration.
 
 ## Tests
 
