@@ -2,7 +2,7 @@ use smart_fluid_flow_meter_backend::{
     api::measurement::SaveMeasurementInput,
     helper::user::MockUserHelper,
     settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, memory::MemoryStorage, mysql::MySqlStorage, Storage},
+    storage::{firestore::FirestoreStorage, memory::MemoryStorage, Storage},
 };
 
 use axum::{
@@ -116,53 +116,6 @@ async fn save_measurement_database_failure() {
     assert_eq!(
         body,
         json!({ "code": "InternalError", "data": "", "message": "We made a mistake. Sorry" })
-    );
-}
-
-#[test(tokio::test)]
-async fn save_measurement_success_mysql() {
-    let settings = Arc::new(Settings::from_file(
-        "/smart-fluid-flow-meter/tests/config/default.yaml",
-    ));
-    let storage = Arc::new(
-        MySqlStorage::new("mysql://user:password@mysql/smart-fluid-flow-meter-backend").await,
-    );
-    let user_helper = Arc::new(MockUserHelper::new());
-    let app = smart_fluid_flow_meter_backend::app(settings, storage, user_helper).await;
-
-    let input = SaveMeasurementInput {
-        device_id: "999".to_string(),
-        measurement: "134".to_string(),
-    };
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/measurement")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body: Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(body.get("id").unwrap().as_str().unwrap(), "1");
-    assert_eq!(
-        body.get("device_id").unwrap().as_str().unwrap(),
-        input.device_id
-    );
-    assert_eq!(
-        body.get("measurement").unwrap().as_str().unwrap(),
-        input.measurement
-    );
-    let actual_date =
-        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
-    assert!(
-        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
     );
 }
 

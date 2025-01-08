@@ -3,7 +3,7 @@ use smart_fluid_flow_meter_backend::{
     error::app_error::AppError,
     helper::user::MockUserHelper,
     settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, memory::MemoryStorage, mysql::MySqlStorage},
+    storage::{firestore::FirestoreStorage, memory::MemoryStorage},
 };
 
 use axum::{
@@ -483,72 +483,4 @@ async fn sign_up_user_duplicate_firestore() {
         body,
         json!({ "code": "InternalError", "data": "", "message": "We made a mistake. Sorry" })
     );
-}
-
-#[test(tokio::test)]
-async fn sign_up_user_success_mysql() {
-    let password = "12345678";
-    let captcha = "heyyou";
-    let hashed_password = "hashed-123";
-
-    // Mock UserHelper
-    let mut user_helper_mock = MockUserHelper::new();
-    user_helper_mock
-        .expect_password_is_weak()
-        .with(eq(password))
-        .return_const(false);
-    user_helper_mock
-        .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
-        .return_const(false);
-    user_helper_mock
-        .expect_hash()
-        .with(eq(password))
-        .returning(|_| Ok(hashed_password.to_string()));
-
-    let settings = Arc::new(Settings::from_file(
-        "/smart-fluid-flow-meter/tests/config/default.yaml",
-    ));
-    let storage = Arc::new(
-        MySqlStorage::new("mysql://user:password@mysql/smart-fluid-flow-meter-backend").await,
-    );
-    let user_helper = Arc::new(user_helper_mock);
-    let app = smart_fluid_flow_meter_backend::app(settings, storage, user_helper).await;
-
-    let input = SignUpUserInput {
-        email: "my.user@you.know".to_string(),
-        name: "Someone last".to_string(),
-        password: password.to_string(),
-        captcha: captcha.to_string(),
-    };
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body: Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(
-        body.get("id").unwrap().as_str().unwrap(),
-        "my.user@you.know+password"
-    );
-    assert_eq!(body.get("provider").unwrap().as_str().unwrap(), "password");
-    assert_eq!(body.get("email").unwrap().as_str().unwrap(), input.email);
-    assert!(body.get("password").is_none()); // Password shouldn't be returned
-    let actual_date =
-        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
-    assert!(
-        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
-    );
-    // E-mail hasn't been verified
-    assert!(body.get("email_verified_at").unwrap().as_str().is_none());
 }

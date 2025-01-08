@@ -8,7 +8,6 @@ image-prod: image
 	@docker run --rm \
 		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
-		-v $(PWD)/assets/:/smart-fluid-flow-meter/assets \
 		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
 		-v $(PWD)/src:/smart-fluid-flow-meter/src \
 		-w /smart-fluid-flow-meter/ \
@@ -25,7 +24,6 @@ ssh: clean
 		-v $(PWD)/Makefile:/backend/Makefile \
 		-v $(PWD)/README.md:/backend/README.md \
 		-v $(PWD)/build:/backend/build \
-		-v $(PWD)/assets:/backend/assets \
 		-v $(PWD)/dockerfiles:/backend/dockerfiles \
 		-v $(PWD)/src:/backend/src \
 		-v $(PWD)/tests:/backend/tests \
@@ -47,7 +45,6 @@ build: image
 	@docker run --rm -it -p 3000:3000 \
 		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
-		-v $(PWD)/assets/:/smart-fluid-flow-meter/assets \
 		-v $(PWD)/build/registry:/usr/local/cargo/registry \
 		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
 		-v $(PWD)/src:/smart-fluid-flow-meter/src \
@@ -58,19 +55,9 @@ build: image
 .PHONY: build
 
 start:
-	@docker run --rm -it -p 3000:3000 \
-		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
-		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
-		-v $(PWD)/assets/:/smart-fluid-flow-meter/assets \
-		-v $(PWD)/build/registry:/usr/local/cargo/registry \
-		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
-		-v $(PWD)/src:/smart-fluid-flow-meter/src \
-		--env-file .env \
-		-w /smart-fluid-flow-meter/ \
-		--name smart-fluid-flow-meter-backend-dev \
-		smart-fluid-flow-meter-backend-image \
-		cargo run
-.PHONY: start
+	@docker compose -f dockerfiles/docker-compose-firestore.yaml down --remove-orphans
+	@docker compose -f dockerfiles/docker-compose-firestore.yaml up --build --abort-on-container-exit
+.PHONY: start-mysql
 
 start-prod: image-prod
 	@docker run --rm -it -p 3000:3000 \
@@ -82,11 +69,6 @@ start-prod: image-prod
 		./smart_fluid_flow_meter_backend
 .PHONY: start-prod
 
-start-mysql:
-	@docker compose -f dockerfiles/docker-compose-mysql.yaml down --remove-orphans
-	@docker compose -f dockerfiles/docker-compose-mysql.yaml up --build --abort-on-container-exit
-.PHONY: start-mysql
-
 # Starts a container with a neovim development environment ready to use
 vim: image
 	@docker build -f dockerfiles/dev-vim -t smart-fluid-flow-meter-backend-vim-image .
@@ -96,7 +78,6 @@ vim: image
 		-v $(PWD)/Makefile:/backend/Makefile \
 		-v $(PWD)/README.md:/backend/README.md \
 		-v $(PWD)/build:/backend/build \
-		-v $(PWD)/assets:/backend/assets \
 		-v $(PWD)/dockerfiles:/backend/dockerfiles \
 		-v $(PWD)/src:/backend/src \
 		-v $(PWD)/tests:/backend/tests \

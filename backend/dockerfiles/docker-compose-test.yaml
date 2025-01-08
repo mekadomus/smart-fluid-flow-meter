@@ -10,14 +10,9 @@ services:
       FIRESTORE_EMULATOR_HOST: 'firestore:8200'
       GOOGLE_APPLICATION_CREDENTIALS: "/service-account-key.json"
     depends_on:
-      mysql:
-        condition: service_healthy
       firestore:
         condition: service_healthy
     volumes:
-      - type: bind
-        source: ../assets
-        target: /smart-fluid-flow-meter/assets
       - type: bind
         source: ../src
         target: /smart-fluid-flow-meter/src
@@ -41,22 +36,6 @@ services:
         target: /service-account-key.json
     command: >
       sh -c "RUST_BACKTRACE=1 cargo test -- --nocapture"
-
-  mysql:
-    image: mysql:8.3.0
-    environment:
-      MYSQL_DATABASE: 'smart-fluid-flow-meter-backend'
-      MYSQL_USER: 'user'
-      MYSQL_PASSWORD: 'password'
-      MYSQL_ROOT_PASSWORD: 'password'
-    ports:
-      - '3306:3306'
-    expose:
-      - '3306'
-    healthcheck:
-        test: "mysqladmin ping -h localhost --user=$$MYSQL_USER --password=$$MYSQL_PASSWORD"
-        timeout: 20s
-        retries: 10
 
   firestore:
     build:
