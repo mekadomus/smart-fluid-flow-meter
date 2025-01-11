@@ -2,20 +2,19 @@ use crate::{
     api::{email_verification::EmailVerification, measurement::Measurement, user::User},
     helper::{mail::MailHelper, token},
     settings::settings::Settings,
-    storage::{error::Error, error::ErrorCode, Storage},
+    storage::{
+        error::{not_found, undefined, Error, ErrorCode},
+        Storage,
+    },
 };
 
 use async_trait::async_trait;
 use chrono::{DateTime, Local, Timelike};
 use firestore::{
-    errors::{
-        BackoffError, FirestoreDatabaseError, FirestoreError,
-        FirestoreError::{DataConflictError, DatabaseError},
-        FirestoreErrorPublicGenericDetails,
-    },
-    path, FirestoreDb, FirestoreDbOptions, FirestoreQueryDirection,
+    errors::{BackoffError, FirestoreError::DataConflictError},
+    path, paths, FirestoreDb, FirestoreDbOptions, FirestoreQueryDirection, FirestoreResult,
 };
-use futures::FutureExt;
+use futures::{stream::BoxStream, FutureExt, TryStreamExt};
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -23,12 +22,8 @@ const EMAIL_VERIFICATION_COLLECTION: &'static str = "email_verification";
 const MEASUREMENT_COLLECTION: &'static str = "measurement";
 const USER_COLLECTION: &'static str = "user";
 
-fn database_error(msg: &str) -> BackoffError<FirestoreError> {
-    return BackoffError::permanent(DatabaseError(FirestoreDatabaseError::new(
-        FirestoreErrorPublicGenericDetails::new(msg.to_string()),
-        msg.to_string(),
-        false,
-    )));
+fn database_error(e: &Error) -> BackoffError<Error> {
+    return BackoffError::permanent(e.clone());
 }
 
 #[derive(Clone)]
@@ -213,8 +208,8 @@ impl Storage for FirestoreStorage {
                     {
                         Ok(inserted) => inserted,
                         Err(e) => {
-                            let msg = format!("Error inserting user. {}", e);
-                            return Err::<User, BackoffError<FirestoreError>>(database_error(&msg));
+                            error!("Error inserting user. {}", e);
+                            return Err::<User, BackoffError<Error>>(database_error(&undefined()));
                         }
                     };
 
@@ -235,13 +230,13 @@ impl Storage for FirestoreStorage {
                     {
                         Ok(_) => {
                             if !mh.sign_up_verification(&s, &u, &verification.token).await {
-                                let msg = "Couldn't send verification email";
-                                return Err(database_error(&msg));
+                                error!("Couldn't send verification email");
+                                return Err(database_error(&undefined()));
                             }
                         }
                         Err(e) => {
-                            let msg = format!("Error saving verification: {}", e);
-                            return Err(database_error(&msg));
+                            error!("Error saving verification: {}", e);
+                            return Err(database_error(&undefined()));
                         }
                     };
 
@@ -274,6 +269,104 @@ impl Storage for FirestoreStorage {
             Ok(f) => return Ok(f),
             Err(err) => {
                 println!("Error finding user: {}", err);
+                return Err(Error {
+                    code: ErrorCode::UndefinedError,
+                });
+            }
+        };
+    }
+
+    async fn verify_email(&self, token: &str) -> Result<User, Error> {
+        let tkn = token.to_string();
+        let res: BoxStream<FirestoreResult<EmailVerification>> = match self
+            .db
+            .fluent()
+            .select()
+            .from(EMAIL_VERIFICATION_COLLECTION)
+            .filter(|q| q.field(path!(EmailVerification::token)).eq(tkn.clone()))
+            .obj()
+            .stream_query_with_errors()
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to query for email verification: {}", e);
+                return Err(undefined());
+            }
+        };
+
+        let verifications: Vec<EmailVerification> = match res.try_collect().await {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to query for email verification: {}", e);
+                return Err(undefined());
+            }
+        };
+
+        if verifications.is_empty() {
+            error!("No verification matches token {}", tkn);
+            return Err(not_found());
+        }
+
+        let user_opt: Option<User> = match self
+            .db
+            .fluent()
+            .select()
+            .by_id_in(USER_COLLECTION)
+            .obj()
+            .one(&verifications[0].id)
+            .await
+        {
+            Ok(u) => u,
+            Err(e) => {
+                error!("Error retrieving user {}. Error {}", verifications[0].id, e);
+                return Err(undefined());
+            }
+        };
+
+        if user_opt.is_none() {
+            error!("User {} not found", verifications[0].id);
+            return Err(undefined());
+        }
+        let mut user = user_opt.unwrap();
+        user.email_verified_at = Some(Local::now());
+
+        let updated = self
+            .db
+            .fluent()
+            .update()
+            .fields(paths!(User::email_verified_at))
+            .in_col(USER_COLLECTION)
+            .document_id(&verifications[0].id)
+            .object(&user)
+            .execute::<User>()
+            .await;
+
+        if updated.is_err() {
+            error!(
+                "Failed to update user {}. Error: {}",
+                user.id,
+                updated.err().unwrap()
+            );
+            return Err(undefined());
+        }
+
+        return Ok(updated.unwrap());
+    }
+
+    async fn email_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, Error> {
+        match self
+            .db
+            .fluent()
+            .select()
+            .by_id_in(EMAIL_VERIFICATION_COLLECTION)
+            .obj()
+            .one(id)
+            .await
+        {
+            Ok(f) => return Ok(f),
+            Err(err) => {
+                println!("Error finding email_verification: {}", err);
                 return Err(Error {
                     code: ErrorCode::UndefinedError,
                 });

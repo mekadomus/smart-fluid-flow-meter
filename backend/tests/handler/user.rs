@@ -13,7 +13,7 @@ use smart_fluid_flow_meter_backend::{
 use axum::{
     body::Body,
     http,
-    http::{Request, StatusCode},
+    http::{Method, Request, StatusCode},
     Router,
 };
 use chrono::{DateTime, Local};
@@ -24,7 +24,13 @@ use std::sync::Arc;
 use test_log::test;
 use tower::util::ServiceExt;
 
-async fn create_app_basic(user_helper: Arc<dyn UserHelper>) -> Router {
+async fn create_app_basic() -> Router {
+    let mail_helper = MockMailHelper::new();
+    let user_helper = MockUserHelper::new();
+    return create_app(Arc::new(mail_helper), Arc::new(user_helper)).await;
+}
+
+async fn create_app_user_helper(user_helper: Arc<dyn UserHelper>) -> Router {
     let mail_helper = MockMailHelper::new();
     return create_app(Arc::new(mail_helper), user_helper.clone()).await;
 }
@@ -64,7 +70,7 @@ async fn sign_up_user_weak_password() {
         .with(eq(password))
         .returning(|_| Ok(hashed_password.to_string()));
 
-    let app = create_app_basic(Arc::new(user_helper_mock)).await;
+    let app = create_app_user_helper(Arc::new(user_helper_mock)).await;
 
     let input = SignUpUserInput {
         email: "my.user@you.know".to_string(),
@@ -109,7 +115,7 @@ async fn sign_up_failed_captcha() {
         .with(eq("my_secret"), eq(captcha), eq("userip"))
         .return_const(true);
 
-    let app = create_app_basic(Arc::new(user_helper_mock)).await;
+    let app = create_app_user_helper(Arc::new(user_helper_mock)).await;
 
     let input = SignUpUserInput {
         email: "my.user@you.know".to_string(),
@@ -158,7 +164,7 @@ async fn sign_up_failed_hash() {
         .with(eq(password))
         .returning(|_| Err(AppError::ServerError));
 
-    let app = create_app_basic(Arc::new(user_helper_mock)).await;
+    let app = create_app_user_helper(Arc::new(user_helper_mock)).await;
 
     let input = SignUpUserInput {
         email: "my.user@you.know".to_string(),
@@ -208,7 +214,7 @@ async fn sign_up_failed_empty_name() {
         .with(eq(password))
         .returning(|_| Ok(hashed_password.to_string()));
 
-    let app = create_app_basic(Arc::new(user_helper_mock)).await;
+    let app = create_app_user_helper(Arc::new(user_helper_mock)).await;
 
     let input = SignUpUserInput {
         email: "my.user@you.know".to_string(),
@@ -258,7 +264,7 @@ async fn sign_up_failed_invalid_email() {
         .with(eq(password))
         .returning(|_| Ok(hashed_password.to_string()));
 
-    let app = create_app_basic(Arc::new(user_helper_mock)).await;
+    let app = create_app_user_helper(Arc::new(user_helper_mock)).await;
 
     let input = SignUpUserInput {
         email: "my.useryou.know".to_string(),
@@ -486,4 +492,98 @@ async fn sign_up_user_email_failure() {
     let id = format!("{}+{}", &input.email, Password);
     let storage = FirestoreStorage::new("dummy-id", "db-id").await;
     assert!(storage.user_by_id(&id).await.unwrap().is_none());
+}
+
+#[test(tokio::test)]
+async fn email_verification_wrong_token() {
+    let app = create_app_basic().await; // Make simple one
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/v1/email-verification?token=wrongtoken")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[test(tokio::test)]
+async fn email_verification_success() {
+    // Sign up a user
+    let password = "12345678";
+    let captcha = "heyyou";
+    let hashed_password = "hashed-123";
+
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_password_is_weak()
+        .with(eq(password))
+        .return_const(false);
+    user_helper_mock
+        .expect_is_bot()
+        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .return_const(false);
+    user_helper_mock
+        .expect_hash()
+        .with(eq(password))
+        .returning(|_| Ok(hashed_password.to_string()));
+
+    let mut mail_helper_mock = MockMailHelper::new();
+    mail_helper_mock
+        .expect_sign_up_verification()
+        .with(always(), always(), always())
+        .return_const(true);
+
+    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
+
+    let input = SignUpUserInput {
+        email: "email.verification@you.know".to_string(),
+        name: "Someone last".to_string(),
+        password: password.to_string(),
+        captcha: captcha.to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/sign-up")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Get the token for the user
+    let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let id = format!("{}+{}", &input.email, Password);
+    let token = match storage.email_verification_by_id(&id).await {
+        Ok(v) => v.unwrap().token,
+        Err(_) => panic!("Failed to get e-mail verification"),
+    };
+
+    // Verify token for the user
+    let app = create_app_basic().await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(format!("/v1/email-verification?token={}", token))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
 }

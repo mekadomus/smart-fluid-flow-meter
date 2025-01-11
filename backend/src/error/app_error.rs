@@ -126,3 +126,7 @@ impl IntoResponse for AppError {
             .into_response()
     }
 }
+
+pub fn internal_error() -> AppError {
+    return AppError::ServerError;
+}

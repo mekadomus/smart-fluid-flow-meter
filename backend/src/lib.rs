@@ -10,7 +10,7 @@ pub mod storage;
 
 use crate::handler::health::health_check;
 use crate::handler::measurement::save_measurement;
-use crate::handler::user::sign_up_user;
+use crate::handler::user::{email_verification, sign_up_user};
 use crate::{
     helper::{mail::MailHelper, user::UserHelper},
     settings::settings::Settings,
@@ -80,6 +80,7 @@ pub async fn app(
     let cors = create_cors_layer(settings);
     Router::new()
         .route("/health", get(health_check))
+        .route("/v1/email-verification", get(email_verification))
         .route("/v1/measurement", post(save_measurement))
         .route("/v1/sign-up", post(sign_up_user))
         .with_state(state)
