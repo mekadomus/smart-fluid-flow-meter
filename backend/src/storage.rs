@@ -2,7 +2,7 @@ pub mod error;
 pub mod firestore;
 
 use crate::{
-    api::{measurement::Measurement, user::User},
+    api::{email_verification::EmailVerification, measurement::Measurement, user::User},
     helper::mail::MailHelper,
     settings::settings::Settings,
     storage::error::Error,
@@ -31,4 +31,6 @@ pub trait Storage: Send + Sync {
         mail_helper: Arc<dyn MailHelper>,
     ) -> Result<User, Error>;
     async fn user_by_id(&self, id: &str) -> Result<Option<User>, Error>;
+    async fn verify_email(&self, token: &str) -> Result<User, Error>;
+    async fn email_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, Error>;
 }

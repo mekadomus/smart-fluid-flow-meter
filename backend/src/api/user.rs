@@ -11,6 +11,11 @@ pub struct SignUpUserInput {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct EmailVerificationInput {
+    pub token: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub enum UserAuthProvider {
     #[serde(rename = "password")]
     Password,
