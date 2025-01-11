@@ -1,6 +1,6 @@
 use smart_fluid_flow_meter_backend::{
     api::measurement::SaveMeasurementInput,
-    helper::user::MockUserHelper,
+    helper::{mail::MockMailHelper, user::MockUserHelper},
     settings::settings::Settings,
     storage::{firestore::FirestoreStorage, Storage},
 };
@@ -24,8 +24,10 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
     ));
     let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
     let user_helper = Arc::new(MockUserHelper::new());
+    let mail_helper = Arc::new(MockMailHelper::new());
     return (
-        smart_fluid_flow_meter_backend::app(settings, storage.clone(), user_helper).await,
+        smart_fluid_flow_meter_backend::app(mail_helper, settings, storage.clone(), user_helper)
+            .await,
         storage,
     );
 }
@@ -51,7 +53,7 @@ async fn save_measurement_invalid_json() {
     let body: Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(
         body,
-        json!({ "code": "InvalidInput", "data": "", "message": "Invalid input" })
+        json!({ "code": "InvalidInput", "data": "", "message": "Invalid JSON for this endpoint" })
     );
 }
 

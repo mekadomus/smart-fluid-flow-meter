@@ -11,9 +11,11 @@ pub mod storage;
 use crate::handler::health::health_check;
 use crate::handler::measurement::save_measurement;
 use crate::handler::user::sign_up_user;
-use crate::helper::user::UserHelper;
-use crate::settings::settings::Settings;
-use crate::storage::Storage;
+use crate::{
+    helper::{mail::MailHelper, user::UserHelper},
+    settings::settings::Settings,
+    storage::Storage,
+};
 
 use axum::{
     extract::FromRef,
@@ -31,6 +33,7 @@ use tracing::{error, info, Level};
 
 #[derive(Clone, FromRef)]
 struct AppState {
+    mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
     storage: Arc<dyn Storage>,
     user_helper: Arc<dyn UserHelper>,
@@ -62,11 +65,13 @@ fn create_cors_layer(settings: Arc<Settings>) -> CorsLayer {
 }
 
 pub async fn app(
+    mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
     storage: Arc<dyn Storage>,
     user_helper: Arc<dyn UserHelper>,
 ) -> Router {
     let state = AppState {
+        mail_helper,
         settings: settings.clone(),
         storage,
         user_helper,

@@ -7,3 +7,7 @@ database:
     database_id: ""
 captcha:
   secret: "my_secret"
+mail:
+  api_key: ""
+  mailer_name: ""
+  mailer_address: ""

@@ -8,6 +8,8 @@ image-prod: image
 	@docker run --rm \
 		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
+		-v $(PWD)/.env:/backend/.env \
+		-v $(PWD)/.env.sample:/backend/.env.sample \
 		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
 		-v $(PWD)/src:/smart-fluid-flow-meter/src \
 		-w /smart-fluid-flow-meter/ \
@@ -21,6 +23,8 @@ ssh: clean
 		-p 3000:3000 \
 		-v $(PWD)/Cargo.lock:/backend/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/backend/Cargo.toml \
+		-v $(PWD)/.env:/backend/.env \
+		-v $(PWD)/.env.sample:/backend/.env.sample \
 		-v $(PWD)/Makefile:/backend/Makefile \
 		-v $(PWD)/README.md:/backend/README.md \
 		-v $(PWD)/build:/backend/build \
@@ -45,6 +49,8 @@ build: image
 	@docker run --rm -it -p 3000:3000 \
 		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
+		-v $(PWD)/.env:/backend/.env \
+		-v $(PWD)/.env.sample:/backend/.env.sample \
 		-v $(PWD)/build/registry:/usr/local/cargo/registry \
 		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
 		-v $(PWD)/src:/smart-fluid-flow-meter/src \
@@ -75,6 +81,8 @@ vim: image
 	@docker run --rm -it \
 		-v $(PWD)/Cargo.lock:/backend/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/backend/Cargo.toml \
+		-v $(PWD)/.env:/backend/.env \
+		-v $(PWD)/.env.sample:/backend/.env.sample \
 		-v $(PWD)/Makefile:/backend/Makefile \
 		-v $(PWD)/README.md:/backend/README.md \
 		-v $(PWD)/build:/backend/build \
