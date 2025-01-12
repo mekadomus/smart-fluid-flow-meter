@@ -11,6 +11,12 @@ pub struct SignUpUserInput {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct LogInUserInput {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct EmailVerificationInput {
     pub token: String,
 }
@@ -35,8 +41,14 @@ pub struct User {
     pub provider: UserAuthProvider,
     pub name: String,
     pub email: String,
-    #[serde(skip_serializing)]
     pub password: Option<String>,
     pub email_verified_at: Option<DateTime<Local>>,
     pub recorded_at: DateTime<Local>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct SessionToken {
+    pub user_id: String,
+    pub token: String,
+    pub expiration: DateTime<Local>,
 }

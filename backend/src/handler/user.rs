@@ -1,5 +1,8 @@
 use crate::{
-    api::user::{EmailVerificationInput, SignUpUserInput, User, UserAuthProvider::Password},
+    api::user::{
+        EmailVerificationInput, LogInUserInput, SessionToken, SignUpUserInput, User,
+        UserAuthProvider::Password,
+    },
     error::app_error::{
         internal_error, AppError, FailedValidation,
         ValidationIssue::{Invalid, Required, TooWeak},
@@ -119,4 +122,59 @@ pub async fn email_verification(
             return Err(internal_error());
         }
     }
+}
+
+/// Logs in a user
+pub async fn log_in_user(
+    State(state): State<AppState>,
+    Extractor(input): Extractor<LogInUserInput>,
+) -> Result<Extractor<SessionToken>, AppError> {
+    let validation_errors = vec![FailedValidation {
+        field: "email".to_string(),
+        issue: Invalid,
+    }];
+
+    let clean_mail = input.email.trim().to_lowercase();
+    if !EmailAddress::is_valid(&clean_mail) {
+        return Err(AppError::ValidationError(validation_errors));
+    }
+
+    let id = format!("{}+{}", clean_mail, Password);
+    let user = match state.storage.user_by_id(&id).await {
+        Ok(u) => {
+            if u.is_none() {
+                return Err(AppError::ValidationError(validation_errors));
+            }
+
+            u.unwrap()
+        }
+        Err(_) => {
+            return Err(AppError::ServerError);
+        }
+    };
+
+    if user.email_verified_at.is_none() {
+        return Err(AppError::ValidationError(validation_errors));
+    }
+
+    let valid = match state
+        .user_helper
+        .verify_hash(&input.password, &user.password.unwrap())
+    {
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
+
+    if !valid {
+        return Err(AppError::ValidationError(validation_errors));
+    }
+
+    let session_token = match state.storage.log_in(&id).await {
+        Ok(t) => t,
+        Err(_) => {
+            return Err(AppError::ServerError);
+        }
+    };
+
+    return Ok(Extractor(session_token));
 }
