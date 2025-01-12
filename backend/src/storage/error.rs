@@ -20,14 +20,14 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-pub fn not_found() -> Error {
-    Error {
+pub fn not_found<T>() -> Result<T, Error> {
+    Err(Error {
         code: ErrorCode::NotFoundError,
-    }
+    })
 }
 
-pub fn undefined() -> Error {
-    Error {
+pub fn undefined<T>() -> Result<T, Error> {
+    Err(Error {
         code: ErrorCode::UndefinedError,
-    }
+    })
 }

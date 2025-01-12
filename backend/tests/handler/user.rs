@@ -1,5 +1,5 @@
 use smart_fluid_flow_meter_backend::{
-    api::user::{SignUpUserInput, UserAuthProvider::Password},
+    api::user::{LogInUserInput, SignUpUserInput, UserAuthProvider::Password},
     error::app_error::AppError,
     helper::{
         mail::{MailHelper, MockMailHelper},
@@ -16,7 +16,7 @@ use axum::{
     http::{Method, Request, StatusCode},
     Router,
 };
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Duration, Local};
 use http_body_util::BodyExt;
 use mockall::predicate::{always, eq};
 use serde_json::{json, Value};
@@ -294,73 +294,6 @@ async fn sign_up_failed_invalid_email() {
 }
 
 #[test(tokio::test)]
-async fn sign_up_user_success() {
-    let password = "12345678";
-    let captcha = "heyyou";
-    let hashed_password = "hashed-123";
-
-    // Mock UserHelper
-    let mut user_helper_mock = MockUserHelper::new();
-    user_helper_mock
-        .expect_password_is_weak()
-        .with(eq(password))
-        .return_const(false);
-    user_helper_mock
-        .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
-        .return_const(false);
-    user_helper_mock
-        .expect_hash()
-        .with(eq(password))
-        .returning(|_| Ok(hashed_password.to_string()));
-
-    let mut mail_helper_mock = MockMailHelper::new();
-    mail_helper_mock
-        .expect_sign_up_verification()
-        .with(always(), always(), always())
-        .return_const(true);
-
-    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
-
-    let input = SignUpUserInput {
-        email: "my.user@you.know".to_string(),
-        name: "Someone last".to_string(),
-        password: password.to_string(),
-        captcha: captcha.to_string(),
-    };
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body: Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(
-        body.get("id").unwrap().as_str().unwrap(),
-        "my.user@you.know+password"
-    );
-    assert_eq!(body.get("provider").unwrap().as_str().unwrap(), "password");
-    assert_eq!(body.get("email").unwrap().as_str().unwrap(), input.email);
-    assert!(body.get("password").is_none()); // Password shouldn't be returned
-    let actual_date =
-        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
-    assert!(
-        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
-    );
-    // E-mail hasn't been verified
-    assert!(body.get("email_verified_at").unwrap().as_str().is_none());
-}
-
-#[test(tokio::test)]
 async fn sign_up_user_duplicate() {
     let password = "0987654321";
     let captcha = "hellothere";
@@ -514,7 +447,7 @@ async fn email_verification_wrong_token() {
 }
 
 #[test(tokio::test)]
-async fn email_verification_success() {
+async fn sign_up_to_log_in_happy_path() {
     // Sign up a user
     let password = "12345678";
     let captcha = "heyyou";
@@ -534,6 +467,10 @@ async fn email_verification_success() {
         .expect_hash()
         .with(eq(password))
         .returning(|_| Ok(hashed_password.to_string()));
+    user_helper_mock
+        .expect_verify_hash()
+        .with(eq(password), eq(hashed_password))
+        .returning(|_, _| Ok(true));
 
     let mut mail_helper_mock = MockMailHelper::new();
     mail_helper_mock
@@ -544,12 +481,13 @@ async fn email_verification_success() {
     let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
 
     let input = SignUpUserInput {
-        email: "email.verification@you.know".to_string(),
+        email: "my.user@you.know".to_string(),
         name: "Someone last".to_string(),
         password: password.to_string(),
         captcha: captcha.to_string(),
     };
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::POST)
@@ -563,6 +501,23 @@ async fn email_verification_success() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(
+        body.get("id").unwrap().as_str().unwrap(),
+        "my.user@you.know+password"
+    );
+    assert_eq!(body.get("provider").unwrap().as_str().unwrap(), "password");
+    assert_eq!(body.get("email").unwrap().as_str().unwrap(), input.email);
+    assert!(body.get("password").unwrap().as_str().is_none()); // Password shouldn't be returned
+    let actual_date =
+        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
+    assert!(
+        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
+    );
+    // E-mail hasn't been verified
+    assert!(body.get("email_verified_at").unwrap().as_str().is_none());
+
     // Get the token for the user
     let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
     let id = format!("{}+{}", &input.email, Password);
@@ -572,8 +527,8 @@ async fn email_verification_success() {
     };
 
     // Verify token for the user
-    let app = create_app_basic().await;
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(Method::GET)
@@ -586,4 +541,34 @@ async fn email_verification_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+
+    let input = LogInUserInput {
+        email: "my.user@you.know".to_string(),
+        password: password.to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/log-in")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(
+        body.get("user_id").unwrap().as_str().unwrap(),
+        "my.user@you.know+password"
+    );
+    let expiration =
+        DateTime::parse_from_rfc3339(body.get("expiration").unwrap().as_str().unwrap())
+            .expect("Bad date")
+            .timestamp_nanos_opt();
+    assert!(Local::now().timestamp_nanos_opt() < expiration);
+    assert!((Local::now() + Duration::days(30)).timestamp_nanos_opt() > expiration);
 }

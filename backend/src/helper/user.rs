@@ -12,6 +12,7 @@ pub trait UserHelper: Send + Sync {
     async fn is_bot(&self, secret: &str, token: &str, ip: &str) -> bool;
     fn password_is_weak(&self, pass: &str) -> bool;
     fn hash(&self, input: &str) -> Result<String, AppError>;
+    fn verify_hash(&self, input: &str, hash: &str) -> Result<bool, AppError>;
 }
 
 pub struct DefaultUserHelper;
@@ -57,6 +58,17 @@ impl UserHelper for DefaultUserHelper {
             Err(e) => {
                 error!("Failed to hash password. {}", e);
                 Err(AppError::ServerError)
+            }
+        };
+    }
+
+    /// Given a string (usually a password), and a hashed password. It verifies
+    /// if they match
+    fn verify_hash(&self, input: &str, hash: &str) -> Result<bool, AppError> {
+        match bcrypt::verify(input, hash) {
+            Ok(v) => return Ok(v),
+            Err(_) => {
+                return Err(AppError::ServerError);
             }
         };
     }

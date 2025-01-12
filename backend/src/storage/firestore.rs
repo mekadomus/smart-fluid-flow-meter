@@ -1,5 +1,9 @@
 use crate::{
-    api::{email_verification::EmailVerification, measurement::Measurement, user::User},
+    api::{
+        email_verification::EmailVerification,
+        measurement::Measurement,
+        user::{SessionToken, User},
+    },
     helper::{mail::MailHelper, token},
     settings::settings::Settings,
     storage::{
@@ -9,22 +13,19 @@ use crate::{
 };
 
 use async_trait::async_trait;
-use chrono::{DateTime, Local, Timelike};
+use chrono::{DateTime, Duration, Local, Timelike};
 use firestore::{
-    errors::{BackoffError, FirestoreError::DataConflictError},
-    path, paths, FirestoreDb, FirestoreDbOptions, FirestoreQueryDirection, FirestoreResult,
+    errors::FirestoreError::DataConflictError, path, paths, FirestoreDb, FirestoreDbOptions,
+    FirestoreQueryDirection, FirestoreResult,
 };
-use futures::{stream::BoxStream, FutureExt, TryStreamExt};
+use futures::{stream::BoxStream, TryStreamExt};
 use std::sync::Arc;
 use tracing::{error, info};
 
 const EMAIL_VERIFICATION_COLLECTION: &'static str = "email_verification";
 const MEASUREMENT_COLLECTION: &'static str = "measurement";
+const SESSION_TOKEN_COLLECTION: &'static str = "session_token";
 const USER_COLLECTION: &'static str = "user";
-
-fn database_error(e: &Error) -> BackoffError<Error> {
-    return BackoffError::permanent(e.clone());
-}
 
 #[derive(Clone)]
 pub struct FirestoreStorage {
@@ -186,74 +187,59 @@ impl Storage for FirestoreStorage {
         settings: Arc<Settings>,
         mail_helper: Arc<dyn MailHelper>,
     ) -> Result<User, Error> {
-        // Even though this says, it's a transaction, firestore doesn't really
-        // allow to do this transactionally, so it doesn't really work as a
-        // transaction. Leaving it like this in case we change to a storage
-        // system that allows transactions
-        match self
+        // This should be in a transaction, but firestore doesn't really allow to
+        // do this transactionally, so it doesn't really work as a transaction.
+        // Leaving it like this in case we change to a storage system that allows
+        // transactions
+        let inserted: User = match self
             .db
-            .run_transaction(|db, _| {
-                let u = user.clone();
-                let s = settings.clone();
-                let mh = mail_helper.clone();
-                async move {
-                    let inserted: User = match db
-                        .fluent()
-                        .insert()
-                        .into(USER_COLLECTION)
-                        .document_id(&u.id)
-                        .object(&u)
-                        .execute()
-                        .await
-                    {
-                        Ok(inserted) => inserted,
-                        Err(e) => {
-                            error!("Error inserting user. {}", e);
-                            return Err::<User, BackoffError<Error>>(database_error(&undefined()));
-                        }
-                    };
-
-                    let verification_token = token::alphanumeric(100);
-                    let verification = EmailVerification {
-                        id: inserted.id.clone(),
-                        token: verification_token,
-                        recorded_at: Local::now(),
-                    };
-                    match db
-                        .fluent()
-                        .insert()
-                        .into(EMAIL_VERIFICATION_COLLECTION)
-                        .document_id(&verification.id)
-                        .object(&verification)
-                        .execute::<EmailVerification>()
-                        .await
-                    {
-                        Ok(_) => {
-                            if !mh.sign_up_verification(&s, &u, &verification.token).await {
-                                error!("Couldn't send verification email");
-                                return Err(database_error(&undefined()));
-                            }
-                        }
-                        Err(e) => {
-                            error!("Error saving verification: {}", e);
-                            return Err(database_error(&undefined()));
-                        }
-                    };
-
-                    return Ok(inserted);
-                }
-                .boxed()
-            })
+            .fluent()
+            .insert()
+            .into(USER_COLLECTION)
+            .document_id(&user.id)
+            .object(&user)
+            .execute()
             .await
         {
-            Ok(i) => return Ok(i),
+            Ok(inserted) => inserted,
             Err(e) => {
-                error!("Error signing up user: {}", e);
-                return Err(Error {
-                    code: ErrorCode::UndefinedError,
-                });
+                error!("Error inserting user. {}", e);
+                return undefined();
             }
-        }
+        };
+
+        let verification_token = token::alphanumeric(100);
+        let verification = EmailVerification {
+            id: inserted.id.clone(),
+            token: verification_token,
+            recorded_at: Local::now(),
+        };
+        match self
+            .db
+            .fluent()
+            .insert()
+            .into(EMAIL_VERIFICATION_COLLECTION)
+            .document_id(&verification.id)
+            .object(&verification)
+            .execute::<EmailVerification>()
+            .await
+        {
+            Ok(_) => {
+                if !mail_helper
+                    .sign_up_verification(&settings, &user, &verification.token)
+                    .await
+                {
+                    error!("Couldn't send verification email");
+                    return undefined();
+                }
+            }
+            Err(e) => {
+                error!("Error saving verification: {}", e);
+                return undefined();
+            }
+        };
+
+        return Ok(inserted);
     }
 
     async fn user_by_id(&self, id: &str) -> Result<Option<User>, Error> {
@@ -291,7 +277,7 @@ impl Storage for FirestoreStorage {
             Ok(v) => v,
             Err(e) => {
                 error!("Failed to query for email verification: {}", e);
-                return Err(undefined());
+                return undefined();
             }
         };
 
@@ -299,13 +285,13 @@ impl Storage for FirestoreStorage {
             Ok(v) => v,
             Err(e) => {
                 error!("Failed to query for email verification: {}", e);
-                return Err(undefined());
+                return undefined();
             }
         };
 
         if verifications.is_empty() {
             error!("No verification matches token {}", tkn);
-            return Err(not_found());
+            return not_found();
         }
 
         let user_opt: Option<User> = match self
@@ -320,13 +306,13 @@ impl Storage for FirestoreStorage {
             Ok(u) => u,
             Err(e) => {
                 error!("Error retrieving user {}. Error {}", verifications[0].id, e);
-                return Err(undefined());
+                return undefined();
             }
         };
 
         if user_opt.is_none() {
             error!("User {} not found", verifications[0].id);
-            return Err(undefined());
+            return undefined();
         }
         let mut user = user_opt.unwrap();
         user.email_verified_at = Some(Local::now());
@@ -348,7 +334,7 @@ impl Storage for FirestoreStorage {
                 user.id,
                 updated.err().unwrap()
             );
-            return Err(undefined());
+            return undefined();
         }
 
         return Ok(updated.unwrap());
@@ -367,9 +353,32 @@ impl Storage for FirestoreStorage {
             Ok(f) => return Ok(f),
             Err(err) => {
                 println!("Error finding email_verification: {}", err);
-                return Err(Error {
-                    code: ErrorCode::UndefinedError,
-                });
+                return undefined();
+            }
+        };
+    }
+
+    async fn log_in(&self, id: &str) -> Result<SessionToken, Error> {
+        let token = SessionToken {
+            user_id: id.to_string(),
+            token: token::alphanumeric(100),
+            expiration: Local::now() + Duration::days(30),
+        };
+
+        match self
+            .db
+            .fluent()
+            .insert()
+            .into(SESSION_TOKEN_COLLECTION)
+            .document_id(&token.token)
+            .object(&token)
+            .execute()
+            .await
+        {
+            Ok(t) => return Ok(t),
+            Err(e) => {
+                error!("Error creating session token. {}", e);
+                return undefined();
             }
         };
     }
