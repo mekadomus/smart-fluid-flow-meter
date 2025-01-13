@@ -21,7 +21,7 @@ pub struct EmailVerificationInput {
     pub token: String,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum UserAuthProvider {
     #[serde(rename = "password")]
     Password,
@@ -35,7 +35,7 @@ impl fmt::Display for UserAuthProvider {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct User {
     pub id: String,
     pub provider: UserAuthProvider,

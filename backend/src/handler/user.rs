@@ -12,7 +12,11 @@ use crate::{
     AppState,
 };
 
-use axum::extract::{Query, State};
+use axum::{
+    body::Body,
+    extract::{Query, State},
+    http::Request,
+};
 use chrono::Local;
 use email_address::EmailAddress;
 
@@ -177,4 +181,15 @@ pub async fn log_in_user(
     };
 
     return Ok(Extractor(session_token));
+}
+
+/// Returns currently logged in user
+pub async fn me(
+    State(_state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Extractor<User>, AppError> {
+    match request.extensions().get::<User>() {
+        Some(u) => return Ok(Extractor(u.clone())),
+        None => return Err(internal_error()),
+    };
 }

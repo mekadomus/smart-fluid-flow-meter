@@ -4,7 +4,10 @@ use crate::{
         measurement::Measurement,
         user::{SessionToken, User},
     },
-    helper::{mail::MailHelper, token},
+    helper::{
+        mail::MailHelper,
+        token::{alphanumeric, AUTH_TOKEN_LEN},
+    },
     settings::settings::Settings,
     storage::{
         error::{not_found, undefined, Error, ErrorCode},
@@ -208,7 +211,7 @@ impl Storage for FirestoreStorage {
             }
         };
 
-        let verification_token = token::alphanumeric(100);
+        let verification_token = alphanumeric(&100);
         let verification = EmailVerification {
             id: inserted.id.clone(),
             token: verification_token,
@@ -260,6 +263,63 @@ impl Storage for FirestoreStorage {
                 });
             }
         };
+    }
+
+    async fn user_by_token(&self, token: &str) -> Result<Option<User>, Error> {
+        let res: BoxStream<FirestoreResult<SessionToken>> = match self
+            .db
+            .fluent()
+            .select()
+            .from(SESSION_TOKEN_COLLECTION)
+            .filter(|q| q.field(path!(SessionToken::token)).eq(token))
+            .obj()
+            .stream_query_with_errors()
+            .await
+        {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to query for session token: {}", e);
+                return undefined();
+            }
+        };
+
+        let sessions: Vec<SessionToken> = match res.try_collect().await {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to query for session token: {}", e);
+                return undefined();
+            }
+        };
+
+        if sessions.is_empty() {
+            return Ok(None);
+        }
+
+        let user_opt: Option<User> = match self
+            .db
+            .fluent()
+            .select()
+            .by_id_in(USER_COLLECTION)
+            .obj()
+            .one(&sessions[0].user_id)
+            .await
+        {
+            Ok(u) => u,
+            Err(e) => {
+                error!("Error retrieving user {}. Error {}", sessions[0].user_id, e);
+                return undefined();
+            }
+        };
+
+        if user_opt.is_none() {
+            error!(
+                "User {} not found. Even when it has a session",
+                sessions[0].user_id
+            );
+            return undefined();
+        }
+
+        return Ok(Some(user_opt.unwrap()));
     }
 
     async fn verify_email(&self, token: &str) -> Result<User, Error> {
@@ -361,7 +421,7 @@ impl Storage for FirestoreStorage {
     async fn log_in(&self, id: &str) -> Result<SessionToken, Error> {
         let token = SessionToken {
             user_id: id.to_string(),
-            token: token::alphanumeric(100),
+            token: alphanumeric(AUTH_TOKEN_LEN),
             expiration: Local::now() + Duration::days(30),
         };
 
