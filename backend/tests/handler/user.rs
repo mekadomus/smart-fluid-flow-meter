@@ -17,6 +17,7 @@ use axum::{
     Router,
 };
 use chrono::{DateTime, Duration, Local};
+use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http_body_util::BodyExt;
 use mockall::predicate::{always, eq};
 use serde_json::{json, Value};
@@ -83,7 +84,7 @@ async fn sign_up_user_weak_password() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -128,7 +129,7 @@ async fn sign_up_failed_captcha() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -177,7 +178,7 @@ async fn sign_up_failed_hash() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -227,7 +228,7 @@ async fn sign_up_failed_empty_name() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -277,7 +278,7 @@ async fn sign_up_failed_invalid_email() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -334,7 +335,7 @@ async fn sign_up_user_duplicate() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -348,7 +349,7 @@ async fn sign_up_user_duplicate() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -406,7 +407,7 @@ async fn sign_up_user_email_failure() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -436,7 +437,7 @@ async fn email_verification_wrong_token() {
             Request::builder()
                 .method(Method::GET)
                 .uri("/v1/email-verification?token=wrongtoken")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -492,7 +493,7 @@ async fn sign_up_to_log_in_happy_path() {
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/sign-up")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -533,7 +534,7 @@ async fn sign_up_to_log_in_happy_path() {
             Request::builder()
                 .method(Method::GET)
                 .uri(format!("/v1/email-verification?token={}", token))
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -547,11 +548,12 @@ async fn sign_up_to_log_in_happy_path() {
         password: password.to_string(),
     };
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::POST)
                 .uri("/v1/log-in")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(serde_json::to_string(&input).unwrap()))
                 .unwrap(),
         )
@@ -565,10 +567,62 @@ async fn sign_up_to_log_in_happy_path() {
         body.get("user_id").unwrap().as_str().unwrap(),
         "my.user@you.know+password"
     );
+    let token = body.get("token").unwrap().as_str().unwrap();
     let expiration =
         DateTime::parse_from_rfc3339(body.get("expiration").unwrap().as_str().unwrap())
             .expect("Bad date")
             .timestamp_nanos_opt();
     assert!(Local::now().timestamp_nanos_opt() < expiration);
     assert!((Local::now() + Duration::days(30)).timestamp_nanos_opt() > expiration);
+
+    // Make a request that requires the token
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/v1/me")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(AUTHORIZATION, format!("BEARER {}", token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(
+        body.get("id").unwrap().as_str().unwrap(),
+        "my.user@you.know+password"
+    );
+    assert_eq!(body.get("provider").unwrap().as_str().unwrap(), "password");
+    assert_eq!(body.get("email").unwrap().as_str().unwrap(), input.email);
+    assert!(body.get("password").unwrap().as_str().is_none()); // Password shouldn't be returned
+    let actual_date =
+        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
+    assert!(
+        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
+    );
+    assert!(body.get("email_verified_at").unwrap().as_str().is_some());
+}
+
+#[test(tokio::test)]
+async fn me_no_auth_token() {
+    let app = create_app_basic().await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/v1/me")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

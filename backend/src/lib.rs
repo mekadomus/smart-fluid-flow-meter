@@ -5,14 +5,16 @@ pub mod api;
 pub mod error;
 pub mod helper;
 pub mod http_client;
+pub mod middleware;
 pub mod settings;
 pub mod storage;
 
 use crate::handler::health::health_check;
 use crate::handler::measurement::save_measurement;
-use crate::handler::user::{email_verification, log_in_user, sign_up_user};
+use crate::handler::user::{email_verification, log_in_user, me, sign_up_user};
 use crate::{
     helper::{mail::MailHelper, user::UserHelper},
+    middleware::auth::auth,
     settings::settings::Settings,
     storage::Storage,
 };
@@ -20,6 +22,7 @@ use crate::{
 use axum::{
     extract::FromRef,
     http::{header::HeaderValue, Method},
+    middleware::from_fn_with_state,
     routing::get,
     routing::post,
     Router,
@@ -32,7 +35,7 @@ use tower_http::{
 use tracing::{error, info, Level};
 
 #[derive(Clone, FromRef)]
-struct AppState {
+pub struct AppState {
     mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
     storage: Arc<dyn Storage>,
@@ -81,10 +84,12 @@ pub async fn app(
     Router::new()
         .route("/health", get(health_check))
         .route("/v1/email-verification", get(email_verification))
+        .route("/v1/log-in", post(log_in_user))
+        .route("/v1/me", get(me))
         .route("/v1/measurement", post(save_measurement))
         .route("/v1/sign-up", post(sign_up_user))
-        .route("/v1/log-in", post(log_in_user))
-        .with_state(state)
+        .with_state(state.clone())
+        .layer(from_fn_with_state(state, auth))
         .layer(cors)
         .layer(
             TraceLayer::new_for_http()

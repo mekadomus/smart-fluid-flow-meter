@@ -34,6 +34,7 @@ pub trait Storage: Send + Sync {
         mail_helper: Arc<dyn MailHelper>,
     ) -> Result<User, Error>;
     async fn user_by_id(&self, id: &str) -> Result<Option<User>, Error>;
+    async fn user_by_token(&self, token: &str) -> Result<Option<User>, Error>;
     async fn verify_email(&self, token: &str) -> Result<User, Error>;
     async fn email_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, Error>;
     async fn log_in(&self, id: &str) -> Result<SessionToken, Error>;
