@@ -9,7 +9,7 @@ use zxcvbn::{zxcvbn, Score::Three};
 #[automock]
 #[async_trait]
 pub trait UserHelper: Send + Sync {
-    async fn is_bot(&self, secret: &str, token: &str, ip: &str) -> bool;
+    async fn is_bot(&self, secret: &str, token: &str) -> bool;
     fn password_is_weak(&self, pass: &str) -> bool;
     fn hash(&self, input: &str) -> Result<String, AppError>;
     fn verify_hash(&self, input: &str, hash: &str) -> Result<bool, AppError>;
@@ -30,19 +30,14 @@ impl UserHelper for DefaultUserHelper {
     /// # Arguments
     /// * `secret` - Cloudflare turnstile secret
     /// * `token` - Captcha token provided by the client
-    /// * `ip` - IP address of the client
-    async fn is_bot(&self, secret: &str, token: &str, ip: &str) -> bool {
+    async fn is_bot(&self, secret: &str, token: &str) -> bool {
         let req = CheckCaptchaRequest {
             secret,
             response: token,
-            remoteip: ip,
         };
         match check_captcha(req).await {
             Ok(r) => {
-                if r.status.is_success() {
-                    return false;
-                }
-                return true;
+                return !r;
             }
             Err(e) => {
                 error!("Error checking if user is bot. {}", e);

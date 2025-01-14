@@ -42,7 +42,7 @@ pub async fn sign_up_user(
 
     if state
         .user_helper
-        .is_bot(&state.settings.captcha.secret, &input.captcha, "userip")
+        .is_bot(&state.settings.captcha.secret, &input.captcha)
         .await
     {
         validation_errors.push(FailedValidation {
@@ -184,10 +184,7 @@ pub async fn log_in_user(
 }
 
 /// Returns currently logged in user
-pub async fn me(
-    State(_state): State<AppState>,
-    request: Request<Body>,
-) -> Result<Extractor<User>, AppError> {
+pub async fn me(request: Request<Body>) -> Result<Extractor<User>, AppError> {
     match request.extensions().get::<User>() {
         Some(u) => return Ok(Extractor(u.clone())),
         None => return Err(internal_error()),
