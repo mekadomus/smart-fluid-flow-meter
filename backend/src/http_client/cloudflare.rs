@@ -1,19 +1,23 @@
-use crate::http_client::common::HttpClientResponse;
-
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-#[derive(Clone, Deserialize, Serialize)]
+use tracing::error;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CheckCaptchaRequest<'a> {
     pub secret: &'a str,
     pub response: &'a str,
-    pub remoteip: &'a str,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CheckCaptchaResponse {
+    success: bool,
 }
 
 pub async fn check_captcha(
     request: CheckCaptchaRequest<'_>,
-) -> Result<HttpClientResponse, Box<dyn std::error::Error>> {
+) -> Result<bool, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
+
     let resp = client
         .post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
         .header("accept", "application/json")
@@ -23,22 +27,17 @@ pub async fn check_captcha(
         .await;
 
     match resp {
-        Ok(res) => {
-            let status_code = res.status();
-            match res.json::<HashMap<String, String>>().await {
-                Ok(j) => {
-                    let ret = HttpClientResponse {
-                        status: status_code,
-                        body: j,
-                    };
-                    return Ok(ret);
-                }
-                Err(err) => {
-                    return Err(Box::new(err));
-                }
+        Ok(res) => match res.json::<CheckCaptchaResponse>().await {
+            Ok(j) => {
+                return Ok(j.success);
             }
-        }
+            Err(err) => {
+                error!("Err 2: {:?}", err);
+                return Err(Box::new(err));
+            }
+        },
         Err(err) => {
+            error!("Err 1: {:?}", err);
             return Err(Box::new(err));
         }
     }

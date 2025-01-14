@@ -64,7 +64,7 @@ async fn sign_up_user_weak_password() {
         .return_const(true);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
@@ -113,7 +113,7 @@ async fn sign_up_failed_captcha() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(true);
 
     let app = create_app_user_helper(Arc::new(user_helper_mock)).await;
@@ -158,7 +158,7 @@ async fn sign_up_failed_hash() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
@@ -208,7 +208,7 @@ async fn sign_up_failed_empty_name() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
@@ -258,7 +258,7 @@ async fn sign_up_failed_invalid_email() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
@@ -308,7 +308,7 @@ async fn sign_up_user_duplicate() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
@@ -381,7 +381,7 @@ async fn sign_up_user_email_failure() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
@@ -462,7 +462,7 @@ async fn sign_up_to_log_in_happy_path() {
         .return_const(false);
     user_helper_mock
         .expect_is_bot()
-        .with(eq("my_secret"), eq(captcha), eq("userip"))
+        .with(eq("my_secret"), eq(captcha))
         .return_const(false);
     user_helper_mock
         .expect_hash()
