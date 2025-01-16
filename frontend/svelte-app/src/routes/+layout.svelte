@@ -2,8 +2,8 @@
   import '../app.css';
   let { children } = $props();
 
-  import MdHeader from '../lib/components/MdHeader.svelte';
-  import MdNav from '../lib/components/MdNav.svelte';
+  import MdHeader from '$lib/components/MdHeader.svelte';
+  import MdNav from '$lib/components/MdNav.svelte';
 </script>
 
 <div>

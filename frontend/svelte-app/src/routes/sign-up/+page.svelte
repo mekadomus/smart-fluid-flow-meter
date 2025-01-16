@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { TurnstileSiteKey } from '../../lib/utils/Constants';
-  import type { SignUpUserInput } from '../../lib/api/User';
-  import { signUpUser } from '../../lib/api/User';
+  import { TurnstileSiteKey } from '$lib/utils/Constants';
+  import type { SignUpUserInput } from '$lib/api/User';
+  import { signUpUser } from '$lib/api/User';
   import { goto } from '$app/navigation';
   import { zxcvbn } from '@zxcvbn-ts/core';
 
