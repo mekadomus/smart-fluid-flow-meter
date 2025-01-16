@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { emailVerification } from '../../../lib/api/User';
+import { emailVerification } from '$lib/api/User';
 
 export const load: PageServerLoad = async ({ params }) => {
   return {
