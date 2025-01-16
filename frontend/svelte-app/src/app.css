@@ -12,3 +12,46 @@ body {
   background: var(--secondary-color-weak);
   color: var(--primary-text);
 }
+
+.button,
+.button2 {
+  background: var(--primary-color);
+  border: 0;
+  border-radius: 5px;
+  color: var(--secondary-color-weak);
+  display: block;
+  margin: 0 auto;
+  padding: 0.5rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.button2 {
+  background: var(--secondary-color);
+}
+
+.button:hover,
+.button2:hover {
+  background-image: linear-gradient(rgb(0 0 0/40%) 0 0);
+  cursor: pointer;
+}
+
+.error-msg,
+.success-msg {
+  border-radius: 5px;
+  border: 1px solid #fff;
+  padding: 10px 15px;
+  font-size: 0.9em;
+}
+
+.error-msg {
+  background-color: #fce4e4;
+  border-color: #fcc2c3;
+  color: #cc0033;
+}
+
+.success-msg {
+  background-color: #dff2bf;
+  border-color: #270;
+  color: #270;
+}
