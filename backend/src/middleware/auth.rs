@@ -43,7 +43,7 @@ pub async fn auth(
     }
 
     match parts[0] {
-        "BEARER" => {
+        "Bearer" => {
             let token = parts[1];
             if token.len() < *AUTH_TOKEN_LEN {
                 return Err(StatusCode::UNAUTHORIZED);
