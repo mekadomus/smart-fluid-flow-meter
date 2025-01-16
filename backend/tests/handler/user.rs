@@ -582,7 +582,7 @@ async fn sign_up_to_log_in_happy_path() {
                 .method(Method::GET)
                 .uri("/v1/me")
                 .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(AUTHORIZATION, format!("BEARER {}", token))
+                .header(AUTHORIZATION, format!("Bearer {}", token))
                 .body(Body::empty())
                 .unwrap(),
         )
