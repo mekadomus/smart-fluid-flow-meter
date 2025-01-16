@@ -55,3 +55,7 @@ body {
   border-color: #270;
   color: #270;
 }
+
+.hidden {
+  display: none;
+}

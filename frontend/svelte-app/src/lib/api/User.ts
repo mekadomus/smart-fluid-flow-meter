@@ -1,5 +1,6 @@
 import type { ErrorResponse } from './Error';
 import { httpGet, httpPost } from '../utils/Http';
+import { httpPostBrowser } from '../utils/HttpClient';
 
 export type SignUpUserInput = {
   captcha: string;
@@ -50,4 +51,13 @@ export async function emailVerification(token: string): Promise<number> {
 export async function me(auth_token: string): Promise<ErrorResponse | User> {
   const res = await httpGet(`/v1/me`, auth_token);
   return res.json();
+}
+
+/**
+ * Logs the user out
+ * Returns the status code of the response
+ */
+export async function logOut(): Promise<number> {
+  const res = await httpPostBrowser(`/v1/log-out`, {});
+  return res.status;
 }

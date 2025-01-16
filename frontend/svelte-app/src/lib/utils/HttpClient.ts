@@ -7,7 +7,7 @@ function getToken(): string {
   return getCookie(AuthorizationCookie);
 }
 
-export async function httpGet(path: string) {
+export async function httpGetBrowser(path: string) {
   const requestHeaders: HeadersInit = new Headers();
   requestHeaders.set('Accept', 'application/json');
   requestHeaders.set('Authorization', getToken());
@@ -18,7 +18,7 @@ export async function httpGet(path: string) {
   });
 }
 
-export async function httpPost(path: string, data: object) {
+export async function httpPostBrowser(path: string, data: object) {
   const requestHeaders: HeadersInit = new Headers();
   requestHeaders.set('Accept', 'application/json');
   requestHeaders.set('Content-Type', 'application/json');

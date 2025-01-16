@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { TurnstileSiteKey } from '$lib/utils/Constants';
-  import type { SignUpUserInput } from '$lib/api/User';
-  import { signUpUser } from '$lib/api/User';
   import { goto } from '$app/navigation';
   import { zxcvbn } from '@zxcvbn-ts/core';
+
+  import type { SignUpUserInput } from '@api/User';
+  import { TurnstileSiteKey } from '@utils/Constants';
+  import { signUpUser } from '@api/User';
 
   let captchaError = $state(false);
 
