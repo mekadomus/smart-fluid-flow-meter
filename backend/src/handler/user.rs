@@ -113,7 +113,15 @@ pub async fn email_verification(
 
     match state.storage.verify_email(&input.token).await {
         Ok(u) => {
-            return Ok(Extractor(u));
+            return Ok(Extractor(User {
+                id: u.id,
+                provider: u.provider,
+                email: u.email,
+                name: u.name,
+                password: None,
+                email_verified_at: u.email_verified_at,
+                recorded_at: u.recorded_at,
+            }));
         }
         Err(e) => {
             if e.code == ErrorCode::NotFoundError {
