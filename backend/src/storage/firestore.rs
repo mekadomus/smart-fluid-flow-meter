@@ -442,4 +442,22 @@ impl Storage for FirestoreStorage {
             }
         };
     }
+
+    async fn log_out(&self, token: &str) -> Result<(), Error> {
+        match self
+            .db
+            .fluent()
+            .delete()
+            .from(SESSION_TOKEN_COLLECTION)
+            .document_id(token)
+            .execute()
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                error!("Error deleting session token. {}", e);
+                return undefined();
+            }
+        };
+    }
 }

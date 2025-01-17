@@ -448,7 +448,7 @@ async fn email_verification_wrong_token() {
 }
 
 #[test(tokio::test)]
-async fn sign_up_to_log_in_happy_path() {
+async fn sign_up_to_log_in_to_log_out_happy_path() {
     // Sign up a user
     let password = "12345678";
     let captcha = "heyyou";
@@ -577,6 +577,7 @@ async fn sign_up_to_log_in_happy_path() {
 
     // Make a request that requires the token
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(Method::GET)
@@ -605,6 +606,21 @@ async fn sign_up_to_log_in_happy_path() {
         Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
     );
     assert!(body.get("email_verified_at").unwrap().as_str().is_some());
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/log-out")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(AUTHORIZATION, format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[test(tokio::test)]

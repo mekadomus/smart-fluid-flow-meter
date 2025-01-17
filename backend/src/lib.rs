@@ -11,7 +11,7 @@ pub mod storage;
 
 use crate::handler::health::health_check;
 use crate::handler::measurement::save_measurement;
-use crate::handler::user::{email_verification, log_in_user, me, sign_up_user};
+use crate::handler::user::{email_verification, log_in_user, log_out_user, me, sign_up_user};
 use crate::{
     helper::{mail::MailHelper, user::UserHelper},
     middleware::auth::auth,
@@ -85,6 +85,7 @@ pub async fn app(
         .route("/health", get(health_check))
         .route("/v1/email-verification", get(email_verification))
         .route("/v1/log-in", post(log_in_user))
+        .route("/v1/log-out", post(log_out_user))
         .route("/v1/me", get(me))
         .route("/v1/measurement", post(save_measurement))
         .route("/v1/sign-up", post(sign_up_user))

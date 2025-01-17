@@ -38,4 +38,5 @@ pub trait Storage: Send + Sync {
     async fn verify_email(&self, token: &str) -> Result<User, Error>;
     async fn email_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, Error>;
     async fn log_in(&self, id: &str) -> Result<SessionToken, Error>;
+    async fn log_out(&self, token: &str) -> Result<(), Error>;
 }
