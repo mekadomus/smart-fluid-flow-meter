@@ -17,6 +17,9 @@ pub struct LogInUserInput {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct LogOutUserResponse {}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct EmailVerificationInput {
     pub token: String,
 }

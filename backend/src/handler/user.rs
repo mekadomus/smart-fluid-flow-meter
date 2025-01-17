@@ -1,7 +1,7 @@
 use crate::{
     api::user::{
-        EmailVerificationInput, LogInUserInput, SessionToken, SignUpUserInput, User,
-        UserAuthProvider::Password,
+        EmailVerificationInput, LogInUserInput, LogOutUserResponse, SessionToken, SignUpUserInput,
+        User, UserAuthProvider::Password,
     },
     error::app_error::{
         internal_error, AppError, FailedValidation,
@@ -15,7 +15,7 @@ use crate::{
 use axum::{
     body::Body,
     extract::{Query, State},
-    http::Request,
+    http::{header::AUTHORIZATION, Request},
 };
 use chrono::Local;
 use email_address::EmailAddress;
@@ -131,7 +131,7 @@ pub async fn email_verification(
                 }];
                 return Err(AppError::ValidationError(validation_errors));
             }
-            return Err(internal_error());
+            return internal_error();
         }
     }
 }
@@ -195,6 +195,21 @@ pub async fn log_in_user(
 pub async fn me(request: Request<Body>) -> Result<Extractor<User>, AppError> {
     match request.extensions().get::<User>() {
         Some(u) => return Ok(Extractor(u.clone())),
-        None => return Err(internal_error()),
+        None => return internal_error(),
     };
+}
+
+/// Deletes the user session in the request
+pub async fn log_out_user(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Extractor<LogOutUserResponse>, AppError> {
+    let auth_header = match request.headers().get(AUTHORIZATION) {
+        Some(h) => h.to_str().unwrap(),
+        None => return internal_error(),
+    };
+    match state.storage.log_out(auth_header).await {
+        Ok(_) => Ok(Extractor(LogOutUserResponse {})),
+        Err(_) => return internal_error(),
+    }
 }

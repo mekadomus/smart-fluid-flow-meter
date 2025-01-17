@@ -127,6 +127,6 @@ impl IntoResponse for AppError {
     }
 }
 
-pub fn internal_error() -> AppError {
-    return AppError::ServerError;
+pub fn internal_error<T>() -> Result<T, AppError> {
+    return Err(AppError::ServerError);
 }
