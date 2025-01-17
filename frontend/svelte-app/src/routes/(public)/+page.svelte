@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { AuthorizationCookie } from '$lib/utils/Constants';
-  import type { LogInInput } from '$lib/api/User';
-  import { logIn } from '$lib/api/User';
-  import { ErrorCode } from '$lib/api/Error';
-  import { setCookie } from '$lib/utils/Cookies';
   import { goto } from '$app/navigation';
   import { zxcvbn } from '@zxcvbn-ts/core';
+
+  import type { LogInInput } from '@api/User';
+  import { AuthorizationCookie } from '@utils/Constants';
+  import { ErrorCode } from '@api/Error';
+  import { logIn } from '@api/User';
+  import { setCookie } from '@utils/Cookies';
 
   async function login(e: Event) {
     e.preventDefault();

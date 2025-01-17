@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 
-import { AuthorizationCookie, PublicPaths } from '../lib/utils/Constants';
-import { me } from '../lib/api/User';
+import { AuthorizationCookie } from '@utils/Constants';
+import { me } from '@api/User';
 
-export async function load({ url, cookies }) {
+export async function load({ cookies }) {
   const token = cookies.get(AuthorizationCookie);
   let user;
   if (token) {
@@ -12,9 +12,7 @@ export async function load({ url, cookies }) {
 
   if (!user || !('email' in user)) {
     cookies.delete(AuthorizationCookie, { path: '/' });
-    if (!PublicPaths.has(url.pathname)) {
-      redirect(307, '/');
-    }
+    redirect(307, '/');
   }
 
   return {
