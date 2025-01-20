@@ -1,5 +1,6 @@
 use smart_fluid_flow_meter_backend::{
     helper::{mail::DefaultMailHelper, user::DefaultUserHelper},
+    middleware::auth::DefaultAuthorizer,
     settings::settings::Settings,
     storage::{firestore::FirestoreStorage, Storage},
 };
@@ -15,6 +16,7 @@ async fn main() {
         .with_line_number(true)
         .init();
 
+    let authorizer = Arc::new(DefaultAuthorizer {});
     let mail_helper = Arc::new(DefaultMailHelper {});
     let settings = Arc::new(Settings::new());
     let user_helper = Arc::new(DefaultUserHelper {});
@@ -26,9 +28,14 @@ async fn main() {
         )
         .await,
     );
-    let app =
-        smart_fluid_flow_meter_backend::app(mail_helper, settings.clone(), storage, user_helper)
-            .await;
+    let app = smart_fluid_flow_meter_backend::app(
+        authorizer,
+        mail_helper,
+        settings.clone(),
+        storage,
+        user_helper,
+    )
+    .await;
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", settings.service.port))
         .await

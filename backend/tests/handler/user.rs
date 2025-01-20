@@ -5,6 +5,7 @@ use smart_fluid_flow_meter_backend::{
         mail::{MailHelper, MockMailHelper},
         user::{MockUserHelper, UserHelper},
     },
+    middleware::auth::DefaultAuthorizer,
     settings::settings::Settings,
     storage::firestore::FirestoreStorage,
     storage::Storage,
@@ -41,7 +42,9 @@ async fn create_app(mail_helper: Arc<dyn MailHelper>, user_helper: Arc<dyn UserH
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
     let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let authorizer = Arc::new(DefaultAuthorizer {});
     return smart_fluid_flow_meter_backend::app(
+        authorizer,
         mail_helper,
         settings,
         storage.clone(),

@@ -1,6 +1,8 @@
 use crate::{
     api::{
+        common::{SortDirection, DEFAULT_PAGE_SIZE},
         email_verification::EmailVerification,
+        fluid_meter::{FluidMeter, FluidMetersInput, FluidMetersSort},
         measurement::Measurement,
         user::{SessionToken, User},
     },
@@ -27,6 +29,7 @@ use tracing::{error, info};
 
 const EMAIL_VERIFICATION_COLLECTION: &'static str = "email_verification";
 const MEASUREMENT_COLLECTION: &'static str = "measurement";
+const FLUID_METER_COLLECTION: &'static str = "fluid_meter";
 const SESSION_TOKEN_COLLECTION: &'static str = "session_token";
 const USER_COLLECTION: &'static str = "user";
 
@@ -257,7 +260,7 @@ impl Storage for FirestoreStorage {
         {
             Ok(f) => return Ok(f),
             Err(err) => {
-                println!("Error finding user: {}", err);
+                error!("Error finding user: {}", err);
                 return Err(Error {
                     code: ErrorCode::UndefinedError,
                 });
@@ -412,7 +415,7 @@ impl Storage for FirestoreStorage {
         {
             Ok(f) => return Ok(f),
             Err(err) => {
-                println!("Error finding email_verification: {}", err);
+                error!("Error finding email_verification: {}", err);
                 return undefined();
             }
         };
@@ -459,5 +462,84 @@ impl Storage for FirestoreStorage {
                 return undefined();
             }
         };
+    }
+
+    async fn get_fluid_meters(
+        &self,
+        user: &String,
+        options: &FluidMetersInput,
+    ) -> Result<Vec<FluidMeter>, Error> {
+        let page_size = options.page_size.unwrap_or(*DEFAULT_PAGE_SIZE);
+        let sort_field = match &options.sort {
+            Some(s) => match s {
+                FluidMetersSort::Id => path!(FluidMeter::id),
+                FluidMetersSort::Name => path!(FluidMeter::name),
+            },
+            None => path!(FluidMeter::id),
+        };
+        let sort_direction = match &options.sort_direction {
+            Some(s) => match s {
+                SortDirection::Asc => FirestoreQueryDirection::Ascending,
+                SortDirection::Desc => FirestoreQueryDirection::Descending,
+            },
+            None => FirestoreQueryDirection::Ascending,
+        };
+
+        match self
+            .db
+            .fluent()
+            .select()
+            .from(FLUID_METER_COLLECTION)
+            .filter(|q| {
+                let mut filters = vec![q.field(path!(FluidMeter::owner_id)).eq(user)];
+                if options.page_cursor.is_some() {
+                    let cursor = options.page_cursor.clone().unwrap();
+                    if sort_direction == FirestoreQueryDirection::Ascending {
+                        filters.push(q.field(sort_field.clone()).greater_than(cursor));
+                    } else {
+                        filters.push(q.field(sort_field.clone()).less_than(cursor));
+                    }
+                }
+                q.for_all(filters)
+            })
+            .order_by([(sort_field, sort_direction)])
+            .limit(page_size.into())
+            .obj()
+            .query()
+            .await
+        {
+            Ok(found) => {
+                return Ok(found);
+            }
+            Err(err) => {
+                error!("Error: {}", err);
+                return Err(Error {
+                    code: ErrorCode::UndefinedError,
+                });
+            }
+        };
+    }
+
+    async fn insert_fluid_meter(&self, fluid_meter: &FluidMeter) -> Result<FluidMeter, Error> {
+        let inserted: FluidMeter = match self
+            .db
+            .fluent()
+            .insert()
+            .into(FLUID_METER_COLLECTION)
+            .document_id(&fluid_meter.id)
+            .object(fluid_meter)
+            .execute()
+            .await
+        {
+            Ok(inserted) => inserted,
+            Err(err) => {
+                error!("Error: {}", err);
+                return Err(Error {
+                    code: ErrorCode::UndefinedError,
+                });
+            }
+        };
+
+        Ok(inserted)
     }
 }

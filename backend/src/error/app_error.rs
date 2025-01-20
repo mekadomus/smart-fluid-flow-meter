@@ -59,6 +59,7 @@ impl From<Vec<FailedValidation>> for AppError {
 pub enum ValidationIssue {
     Invalid,
     Required,
+    TooLarge,
     TooWeak,
 }
 
