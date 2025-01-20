@@ -3,7 +3,10 @@ pub mod firestore;
 
 use crate::{
     api::{
-        email_verification::EmailVerification, measurement::Measurement, user::SessionToken,
+        email_verification::EmailVerification,
+        fluid_meter::{FluidMeter, FluidMetersInput},
+        measurement::Measurement,
+        user::SessionToken,
         user::User,
     },
     helper::mail::MailHelper,
@@ -17,6 +20,14 @@ use std::sync::Arc;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
+    // ----- Fluid meter ----- //
+    async fn get_fluid_meters(
+        &self,
+        user: &String,
+        filters: &FluidMetersInput,
+    ) -> Result<Vec<FluidMeter>, Error>;
+    async fn insert_fluid_meter(&self, fluid_meter: &FluidMeter) -> Result<FluidMeter, Error>;
+
     // ----- Measurement ----- //
     async fn save_measurement(&self, measurement: Measurement) -> Result<Measurement, Error>;
     async fn get_measurements(

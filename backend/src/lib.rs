@@ -9,12 +9,15 @@ pub mod middleware;
 pub mod settings;
 pub mod storage;
 
-use crate::handler::health::health_check;
-use crate::handler::measurement::save_measurement;
-use crate::handler::user::{email_verification, log_in_user, log_out_user, me, sign_up_user};
 use crate::{
+    handler::{
+        fluid_meter::fluid_meters,
+        health::health_check,
+        measurement::save_measurement,
+        user::{email_verification, log_in_user, log_out_user, me, sign_up_user},
+    },
     helper::{mail::MailHelper, user::UserHelper},
-    middleware::auth::auth,
+    middleware::auth::{auth, Authorizer},
     settings::settings::Settings,
     storage::Storage,
 };
@@ -36,6 +39,7 @@ use tracing::{error, info, Level};
 
 #[derive(Clone, FromRef)]
 pub struct AppState {
+    authorizer: Arc<dyn Authorizer>,
     mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
     storage: Arc<dyn Storage>,
@@ -68,12 +72,14 @@ fn create_cors_layer(settings: Arc<Settings>) -> CorsLayer {
 }
 
 pub async fn app(
+    authorizer: Arc<dyn Authorizer>,
     mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
     storage: Arc<dyn Storage>,
     user_helper: Arc<dyn UserHelper>,
 ) -> Router {
     let state = AppState {
+        authorizer,
         mail_helper,
         settings: settings.clone(),
         storage,
@@ -84,6 +90,7 @@ pub async fn app(
     Router::new()
         .route("/health", get(health_check))
         .route("/v1/email-verification", get(email_verification))
+        .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/log-in", post(log_in_user))
         .route("/v1/log-out", post(log_out_user))
         .route("/v1/me", get(me))

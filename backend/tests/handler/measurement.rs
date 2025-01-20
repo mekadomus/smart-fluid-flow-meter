@@ -1,6 +1,7 @@
 use smart_fluid_flow_meter_backend::{
     api::measurement::SaveMeasurementInput,
     helper::{mail::MockMailHelper, user::MockUserHelper},
+    middleware::auth::MockAuthorizer,
     settings::settings::Settings,
     storage::{firestore::FirestoreStorage, Storage},
 };
@@ -13,6 +14,7 @@ use axum::{
 };
 use chrono::{DateTime, Local};
 use http_body_util::BodyExt;
+use mockall::predicate::always;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use test_log::test;
@@ -23,11 +25,23 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
     let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let mut authorizer = MockAuthorizer::new();
+    authorizer
+        .expect_authorize()
+        .with(always(), always())
+        .returning(|_, _| Ok(()));
+
     let user_helper = Arc::new(MockUserHelper::new());
     let mail_helper = Arc::new(MockMailHelper::new());
     return (
-        smart_fluid_flow_meter_backend::app(mail_helper, settings, storage.clone(), user_helper)
-            .await,
+        smart_fluid_flow_meter_backend::app(
+            Arc::new(authorizer),
+            mail_helper,
+            settings,
+            storage.clone(),
+            user_helper,
+        )
+        .await,
         storage,
     );
 }
