@@ -7,8 +7,7 @@ use smart_fluid_flow_meter_backend::{
     },
     middleware::auth::DefaultAuthorizer,
     settings::settings::Settings,
-    storage::firestore::FirestoreStorage,
-    storage::Storage,
+    storage::{firestore::FirestoreStorage, UserStorage},
 };
 
 use axum::{
