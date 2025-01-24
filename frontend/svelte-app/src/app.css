@@ -37,7 +37,8 @@ body {
 }
 
 .error-msg,
-.success-msg {
+.success-msg,
+.warning-msg {
   border-radius: 5px;
   border: 1px solid #fff;
   padding: 10px 15px;
@@ -54,6 +55,12 @@ body {
   background-color: #dff2bf;
   border-color: #270;
   color: #270;
+}
+
+.warning-msg {
+  background-color: #feefb3;
+  border-color: #9f6000;
+  color: #9f6000;
 }
 
 .hidden {
