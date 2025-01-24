@@ -19,16 +19,17 @@ use chrono::{DateTime, Local};
 use std::sync::Arc;
 
 #[async_trait]
-pub trait Storage: Send + Sync {
-    // ----- Fluid meter ----- //
+pub trait FluidMeterStorage {
     async fn get_fluid_meters(
         &self,
         user: &String,
         filters: &FluidMetersInput,
     ) -> Result<Vec<FluidMeter>, Error>;
     async fn insert_fluid_meter(&self, fluid_meter: &FluidMeter) -> Result<FluidMeter, Error>;
+}
 
-    // ----- Measurement ----- //
+#[async_trait]
+pub trait MeasurementStorage {
     async fn save_measurement(&self, measurement: Measurement) -> Result<Measurement, Error>;
     async fn get_measurements(
         &self,
@@ -36,8 +37,10 @@ pub trait Storage: Send + Sync {
         since: DateTime<Local>,
         num_records: u32,
     ) -> Result<Vec<Measurement>, Error>;
+}
 
-    // ----- User ----- //
+#[async_trait]
+pub trait UserStorage {
     async fn sign_up_user(
         &self,
         user: User,
@@ -51,3 +54,6 @@ pub trait Storage: Send + Sync {
     async fn log_in(&self, id: &str) -> Result<SessionToken, Error>;
     async fn log_out(&self, token: &str) -> Result<(), Error>;
 }
+
+#[async_trait]
+pub trait Storage: Send + Sync + FluidMeterStorage + MeasurementStorage + UserStorage {}
