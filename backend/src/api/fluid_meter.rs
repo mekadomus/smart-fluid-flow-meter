@@ -2,7 +2,7 @@ use crate::api::common::SortDirection;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum FluidMeterStatus {
     Active,
     // Still shown to the user, but not triggering alarms
@@ -33,4 +33,9 @@ pub struct FluidMetersInput {
     // Will retrieve only items after this one
     pub page_cursor: Option<String>,
     pub page_size: Option<u8>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CreateFluidMeterInput {
+    pub name: String,
 }

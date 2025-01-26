@@ -1,25 +1,29 @@
+use axum::{
+    extract::{Query, State},
+    Extension,
+};
+use chrono::Local;
+use uuid::Uuid;
+
 use crate::{
     api::{
         common::{PaginatedResponse, Pagination, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-        fluid_meter::{FluidMeter, FluidMetersInput},
+        fluid_meter::{CreateFluidMeterInput, FluidMeter, FluidMeterStatus, FluidMetersInput},
         user::User,
     },
-    error::app_error::{internal_error, AppError, FailedValidation, ValidationIssue::TooLarge},
+    error::app_error::{
+        internal_error, AppError, FailedValidation,
+        ValidationIssue::{Required, TooLarge},
+    },
     json::extractor::Extractor,
     AppState,
-};
-
-use axum::{
-    body::Body,
-    extract::{Query, State},
-    http::Request,
 };
 
 /// Lists all fluid meters for the logged in user
 pub async fn fluid_meters(
     State(state): State<AppState>,
     Query(input): Query<FluidMetersInput>,
-    request: Request<Body>,
+    user: Extension<User>,
 ) -> Result<Extractor<PaginatedResponse<FluidMeter>>, AppError> {
     let mut validation_errors = vec![];
 
@@ -34,11 +38,6 @@ pub async fn fluid_meters(
     if !validation_errors.is_empty() {
         return Err(AppError::ValidationError(validation_errors));
     }
-
-    let user = match request.extensions().get::<User>() {
-        Some(u) => u,
-        None => return internal_error(),
-    };
 
     let mut options = input.clone();
     options.page_size = Some(page_size + 1);
@@ -61,4 +60,40 @@ pub async fn fluid_meters(
     };
 
     return Ok(Extractor(resp));
+}
+
+/// Creates a new fluid meter
+pub async fn create_fluid_meter(
+    State(state): State<AppState>,
+    user: Extension<User>,
+    Extractor(input): Extractor<CreateFluidMeterInput>,
+) -> Result<Extractor<FluidMeter>, AppError> {
+    let mut validation_errors = vec![];
+
+    let name = input.name.trim();
+    if name.len() == 0 {
+        validation_errors.push(FailedValidation {
+            field: "name".to_string(),
+            issue: Required,
+        });
+    }
+
+    if !validation_errors.is_empty() {
+        return Err(AppError::ValidationError(validation_errors));
+    }
+
+    let meter = FluidMeter {
+        id: Uuid::new_v4().to_string(),
+        name: name.to_string(),
+        status: FluidMeterStatus::Active,
+        owner_id: user.id.clone(),
+        recorded_at: Local::now(),
+    };
+
+    let meter = match state.storage.insert_fluid_meter(&meter).await {
+        Ok(m) => m,
+        Err(_) => return internal_error(),
+    };
+
+    return Ok(Extractor(meter));
 }

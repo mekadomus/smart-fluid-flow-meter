@@ -1,15 +1,3 @@
-use smart_fluid_flow_meter_backend::{
-    api::{
-        common::PaginatedResponse,
-        fluid_meter::{FluidMeter, FluidMeterStatus},
-        user::{User, UserAuthProvider},
-    },
-    helper::{mail::MockMailHelper, user::MockUserHelper},
-    middleware::auth::MockAuthorizer,
-    settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, Storage},
-};
-
 use axum::{
     body::Body,
     http,
@@ -21,6 +9,19 @@ use http_body_util::BodyExt;
 use mockall::predicate::always;
 use std::sync::Arc;
 use tower::util::ServiceExt;
+use uuid::Uuid;
+
+use smart_fluid_flow_meter_backend::{
+    api::{
+        common::PaginatedResponse,
+        fluid_meter::{CreateFluidMeterInput, FluidMeter, FluidMeterStatus},
+        user::{User, UserAuthProvider},
+    },
+    helper::{mail::MockMailHelper, user::MockUserHelper},
+    middleware::auth::MockAuthorizer,
+    settings::settings::Settings,
+    storage::{firestore::FirestoreStorage, Storage},
+};
 
 async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
@@ -170,4 +171,38 @@ async fn get_fluid_meters_filters() {
     assert_eq!(resp.items[0].name, "garage");
     assert!(resp.pagination.has_more);
     assert!(resp.pagination.has_less);
+}
+
+#[tokio::test]
+async fn create_fluid_meter() {
+    let user_id = 500;
+    let (app, _) = create_app_with_user(user_id).await;
+
+    let name = "kitchen";
+    let input = CreateFluidMeterInput {
+        name: name.to_string(),
+    };
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/fluid-meter")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let resp: FluidMeter = serde_json::from_slice(&body).unwrap();
+    assert_eq!(resp.name, name);
+    assert!(Local::now().timestamp_nanos_opt() > resp.recorded_at.timestamp_nanos_opt());
+    assert_eq!(resp.owner_id, user_id.to_string());
+    assert_eq!(resp.status, FluidMeterStatus::Active);
+    assert!(Uuid::try_parse(&resp.id).is_ok());
 }

@@ -11,7 +11,7 @@ pub mod storage;
 
 use crate::{
     handler::{
-        fluid_meter::fluid_meters,
+        fluid_meter::{create_fluid_meter, fluid_meters},
         health::health_check,
         measurement::save_measurement,
         user::{email_verification, log_in_user, log_out_user, me, sign_up_user},
@@ -91,6 +91,7 @@ pub async fn app(
         .route("/health", get(health_check))
         .route("/v1/email-verification", get(email_verification))
         .route("/v1/fluid-meter", get(fluid_meters))
+        .route("/v1/fluid-meter", post(create_fluid_meter))
         .route("/v1/log-in", post(log_in_user))
         .route("/v1/log-out", post(log_out_user))
         .route("/v1/me", get(me))

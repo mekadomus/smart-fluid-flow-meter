@@ -16,6 +16,7 @@ use axum::{
     body::Body,
     extract::{Query, State},
     http::{header::AUTHORIZATION, Request},
+    Extension,
 };
 use chrono::Local;
 use email_address::EmailAddress;
@@ -192,11 +193,8 @@ pub async fn log_in_user(
 }
 
 /// Returns currently logged in user
-pub async fn me(request: Request<Body>) -> Result<Extractor<User>, AppError> {
-    match request.extensions().get::<User>() {
-        Some(u) => return Ok(Extractor(u.clone())),
-        None => return internal_error(),
-    };
+pub async fn me(user: Extension<User>) -> Result<Extractor<User>, AppError> {
+    Ok(Extractor((*user).clone()))
 }
 
 /// Deletes the user session in the request
