@@ -4,10 +4,12 @@
   import { goto } from '$app/navigation';
 
   import { AuthorizationCookie } from '@utils/Constants';
-  import { logOut } from '@api/User';
+  import type { Message } from '@api/Message';
+  import { MessageType } from '@api/Message';
   import { deleteCookie } from '@utils/Cookies';
+  import { logOut } from '@api/User';
 
-  const globalErrors: SvelteMap<string, string> = getContext('globalErrors');
+  const globalMessages: SvelteMap<string, Message> = getContext('globalMessages');
 
   async function logout() {
     const status = await logOut();
@@ -15,13 +17,19 @@
       deleteCookie(AuthorizationCookie);
       goto('/');
     } else {
-      globalErrors.set('sign-out-error', 'Sorry. There was an error.');
+      let message: Message = {
+        type: MessageType.Error,
+        text: 'Sorry. There was an error.'
+      };
+      globalMessages.set('sign-out-error', message);
     }
   }
 </script>
 
 <header>
-  <a href="/"><img alt="Mekadomus logo" src="/header-logo.png" width="150" height="85" /></a>
+  <a href="/dashboard"
+    ><img alt="Mekadomus logo" src="/header-logo.png" width="150" height="85" /></a
+  >
   <button id="log-out" onclick={() => logout()}>Log out</button>
 </header>
 

@@ -4,18 +4,20 @@
 
   import '@src/app.css';
 
-  let errors = $state(new SvelteMap());
-  setContext('globalErrors', errors);
+  let messages = $state(new SvelteMap());
+  setContext('globalMessages', messages);
 
   let { children } = $props();
 
-  import MdGlobalErrors from '@components/MdGlobalErrors.svelte';
+  import MdGlobalMessages from '@components/MdGlobalMessages.svelte';
   import MdPrivateHeader from '@components/MdPrivateHeader.svelte';
+  import MdPrivateNavigation from '@components/MdPrivateNavigation.svelte';
 </script>
 
 <div>
-  <MdGlobalErrors {errors} />
+  <MdGlobalMessages {messages} />
   <MdPrivateHeader />
+  <MdPrivateNavigation />
   <section>
     {@render children()}
   </section>
