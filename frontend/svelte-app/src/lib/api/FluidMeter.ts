@@ -1,6 +1,9 @@
 import type { ErrorResponse } from './Error';
+import type { PaginatedResponse } from './Common';
+
+import { PAGE_SIZE } from './Common';
 import { httpGet } from '../utils/Http';
-import { httpPostBrowser } from '../utils/HttpClient';
+import { httpPostBrowser, httpGetBrowser } from '../utils/HttpClient';
 
 enum FluidMeterStatus {
   Active,
@@ -25,9 +28,20 @@ export type CreateFluidMeterInput = {
 /**
  * Get a page of fluid meters
  */
-export async function getFluidMeters(token: string): Promise<FluidMeter[] | ErrorResponse> {
-  const res = await httpGet(`/v1/fluid-meter`, token);
+export async function getFluidMeters(
+  token: string
+): Promise<PaginatedResponse<FluidMeter> | ErrorResponse> {
+  const res = await httpGet(`/v1/fluid-meter?page_size=${PAGE_SIZE}`, token);
   return res.json();
+}
+
+/**
+ * Get a page of fluid meters
+ */
+export async function getFluidMetersBrowser(
+  after: string
+): Promise<PaginatedResponse<FluidMeter> | ErrorResponse> {
+  return httpGetBrowser(`/v1/fluid-meter?page_size=${PAGE_SIZE}&page_cursor=${after}`);
 }
 
 /**
