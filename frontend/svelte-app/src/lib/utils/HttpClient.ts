@@ -12,10 +12,19 @@ export async function httpGetBrowser(path: string) {
   requestHeaders.set('Accept', 'application/json');
   requestHeaders.set('Authorization', getToken());
 
-  return fetch(env.PUBLIC_BACKEND_URL + path, {
+  const r = await fetch(env.PUBLIC_BACKEND_URL + path, {
     method: 'GET',
     headers: requestHeaders
   });
+
+  if (r.ok) {
+    return r.json();
+  } else {
+    return {
+      code: 'InternalError',
+      message: 'We encountered an error'
+    };
+  }
 }
 
 export async function httpPostBrowser(path: string, data: object) {
@@ -24,11 +33,20 @@ export async function httpPostBrowser(path: string, data: object) {
   requestHeaders.set('Content-Type', 'application/json');
   requestHeaders.set('Authorization', getToken());
 
-  return fetch(env.PUBLIC_BACKEND_URL + path, {
+  const r = await fetch(env.PUBLIC_BACKEND_URL + path, {
     method: 'POST',
     headers: requestHeaders,
     body: JSON.stringify(data)
   });
+
+  if (r.ok) {
+    return r.json();
+  } else {
+    return {
+      code: 'InternalError',
+      message: 'We encountered an error'
+    };
+  }
 }
 
 export async function httpPut(path: string, data: object) {
