@@ -1,5 +1,6 @@
 use smart_fluid_flow_meter_backend::{
     api::{
+        common::{Series, SeriesGranularity::Hour},
         fluid_meter::{FluidMeter, FluidMeterStatus::Active},
         measurement::SaveMeasurementInput,
         user::{User, UserAuthProvider::Password},
@@ -24,8 +25,8 @@ use std::sync::Arc;
 use test_log::test;
 use tower::util::ServiceExt;
 
-pub const DEVICE_ID: &'static str = "999";
-pub const DEVICE_ID2: &'static str = "666";
+pub const DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89001";
+pub const DEVICE_ID2: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89002";
 
 async fn create_app() -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
@@ -66,7 +67,10 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
     authorizer
         .expect_authorize()
         .with(always(), always())
-        .returning(|_, _| Ok(()));
+        .returning(move |_, request| {
+            request.extensions_mut().insert(user.clone());
+            Ok(())
+        });
 
     let user_helper = Arc::new(MockUserHelper::new());
     let mail_helper = Arc::new(MockMailHelper::new());
@@ -197,4 +201,70 @@ async fn save_measurement_ignores_duplicate() {
             panic!("Error getting measurements from db");
         }
     };
+}
+
+#[tokio::test]
+async fn get_measurements_for_meter_not_owned() {
+    let (app, _) = create_app().await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/v1/fluid-meter/00000000-0000-0000-0000-000000000000/measurement")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn get_measurements_for_meter_invalid_meter() {
+    let (app, _) = create_app().await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/v1/fluid-meter/bad-id/measurement")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn get_measurements_for_meter_success() {
+    let (app, _) = create_app().await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/v1/fluid-meter/{}/measurement", DEVICE_ID))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let resp: Series = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(resp.granularity, Hour);
+    assert_eq!(resp.items.len(), 0);
 }
