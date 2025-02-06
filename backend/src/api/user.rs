@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -19,14 +19,11 @@ pub struct LogInUserInput {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct LogOutUserResponse {}
 
-#[derive(Clone, Deserialize, Serialize)]
-pub struct EmailVerificationInput {
-    pub token: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR")] // Store as a string in the DB
 pub enum UserAuthProvider {
     #[serde(rename = "password")]
+    #[sqlx(rename = "password")]
     Password,
 }
 
@@ -38,20 +35,20 @@ impl fmt::Display for UserAuthProvider {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct User {
     pub id: String,
     pub provider: UserAuthProvider,
     pub name: String,
     pub email: String,
     pub password: Option<String>,
-    pub email_verified_at: Option<DateTime<Local>>,
-    pub recorded_at: DateTime<Local>,
+    pub email_verified_at: Option<NaiveDateTime>,
+    pub recorded_at: NaiveDateTime,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct SessionToken {
     pub user_id: String,
     pub token: String,
-    pub expiration: DateTime<Local>,
+    pub expires_at: NaiveDateTime,
 }

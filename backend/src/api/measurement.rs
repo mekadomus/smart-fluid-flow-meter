@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -9,9 +9,8 @@ pub struct SaveMeasurementInput {
 
 #[derive(Clone, Deserialize, Serialize, sqlx::FromRow)]
 pub struct Measurement {
-    #[serde(alias = "_firestore_id")]
     pub id: Option<String>,
     pub device_id: String,
     pub measurement: String,
-    pub recorded_at: DateTime<Local>,
+    pub recorded_at: NaiveDateTime,
 }

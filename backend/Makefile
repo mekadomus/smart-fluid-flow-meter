@@ -4,23 +4,25 @@ image:
 	@docker build -f dockerfiles/dev -t smart-fluid-flow-meter-backend-image .
 .PHONY: image
 
-image-prod: image
+image-prod: build
 	@docker run --rm \
-		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
-		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
+		-v $(PWD)/assets/:/backend/assets \
+		-v $(PWD)/Cargo.lock:/backend/Cargo.lock \
+		-v $(PWD)/Cargo.toml:/backend/Cargo.toml \
 		-v $(PWD)/.env:/backend/.env \
 		-v $(PWD)/.env.sample:/backend/.env.sample \
-		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
-		-v $(PWD)/src:/smart-fluid-flow-meter/src \
-		-w /smart-fluid-flow-meter/ \
+		-v $(PWD)/build/target:/backend/target \
+		-v $(PWD)/src:/backend/src \
+		-w /backend/ \
 		smart-fluid-flow-meter-backend-image \
 		cargo build --release
-	@docker build -f dockerfiles/prod -t backend-prod .
+	@docker build -f dockerfiles/prod -t backend-image-prod .
 .PHONY: image-prod
 
 ssh: clean
 	@docker run --rm -it \
 		-p 3000:3000 \
+		-v $(PWD)/assets/:/backend/assets \
 		-v $(PWD)/Cargo.lock:/backend/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/backend/Cargo.toml \
 		-v $(PWD)/.env:/backend/.env \
@@ -41,37 +43,36 @@ ssh: clean
 ssh-prod: image-prod
 	@docker run --rm -it -p 3000:3000 \
 		--name smart-fluid-flow-meter-backend-prod-ssh \
-		smart-fluid-flow-meter-backend-image-prod \
+		backend-image-prod \
 		bash
 .PHONY: ssh-prod
 
 build: image
 	@docker run --rm -it -p 3000:3000 \
-		-v $(PWD)/Cargo.lock:/smart-fluid-flow-meter/Cargo.lock \
-		-v $(PWD)/Cargo.toml:/smart-fluid-flow-meter/Cargo.toml \
+		-v $(PWD)/assets/:/backend/assets \
+		-v $(PWD)/Cargo.lock:/backend/Cargo.lock \
+		-v $(PWD)/Cargo.toml:/backend/Cargo.toml \
 		-v $(PWD)/.env:/backend/.env \
 		-v $(PWD)/.env.sample:/backend/.env.sample \
 		-v $(PWD)/build/registry:/usr/local/cargo/registry \
-		-v $(PWD)/build/target:/smart-fluid-flow-meter/target \
-		-v $(PWD)/src:/smart-fluid-flow-meter/src \
-		-w /smart-fluid-flow-meter/ \
+		-v $(PWD)/build/target:/backend/target \
+		-v $(PWD)/src:/backend/src \
+		-w /backend/ \
 		--name smart-fluid-flow-meter-backend-dev \
 		smart-fluid-flow-meter-backend-image \
 		cargo build
 .PHONY: build
 
 start:
-	@docker compose -f dockerfiles/docker-compose-firestore.yaml down --remove-orphans
-	@docker compose -f dockerfiles/docker-compose-firestore.yaml up --build --abort-on-container-exit
-.PHONY: start-mysql
+	@docker compose -f dockerfiles/docker-compose-dev.yaml down --remove-orphans
+	@docker compose -f dockerfiles/docker-compose-dev.yaml up --build --abort-on-container-exit
+.PHONY: start
 
 start-prod: image-prod
 	@docker run --rm -it -p 3000:3000 \
-		-e GOOGLE_APPLICATION_CREDENTIALS=/service-account-key.json \
 		--env-file .env \
-		-v $(PWD)/service-account-key.json:/service-account-key.json \
 		--name smart-fluid-flow-meter-backend-prod \
-		smart-fluid-flow-meter-backend-image-prod \
+		backend-image-prod \
 		./smart_fluid_flow_meter_backend
 .PHONY: start-prod
 
@@ -79,6 +80,7 @@ start-prod: image-prod
 vim: image
 	@docker build -f dockerfiles/dev-vim -t smart-fluid-flow-meter-backend-vim-image .
 	@docker run --rm -it \
+		-v $(PWD)/assets/:/backend/assets \
 		-v $(PWD)/Cargo.lock:/backend/Cargo.lock \
 		-v $(PWD)/Cargo.toml:/backend/Cargo.toml \
 		-v $(PWD)/.env:/backend/.env \
@@ -103,11 +105,11 @@ test:
 .PHONY: test
 
 format:
-	@docker run --rm -v $(PWD)/:/smart-fluid-flow-meter/ -w /smart-fluid-flow-meter/ smart-fluid-flow-meter-backend-image cargo fmt
+	@docker run --rm -v $(PWD)/:/backend/ -w /backend/ smart-fluid-flow-meter-backend-image cargo fmt
 .PHONY: format
 
 check-format:
-	@docker run --rm -v $(PWD)/:/smart-fluid-flow-meter/ -w /smart-fluid-flow-meter/ smart-fluid-flow-meter-backend-image cargo fmt --check
+	@docker run --rm -v $(PWD)/:/backend/ -w /backend/ smart-fluid-flow-meter-backend-image cargo fmt --check
 .PHONY: check-format
 
 verify: clean build image-prod check-format test

@@ -9,14 +9,13 @@ pub struct Service {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Firestore {
-    pub project_id: String,
-    pub database_id: String,
+pub struct Postgres {
+    pub connection_string: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Database {
-    pub firestore: Firestore,
+    pub postgres: Postgres,
 }
 
 #[derive(Debug, Deserialize)]

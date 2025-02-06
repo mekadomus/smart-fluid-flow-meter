@@ -1,7 +1,10 @@
 use crate::{
-    api::user::{
-        EmailVerificationInput, LogInUserInput, LogOutUserResponse, SessionToken, SignUpUserInput,
-        User, UserAuthProvider::Password,
+    api::{
+        email_verification::EmailVerificationInput,
+        user::{
+            LogInUserInput, LogOutUserResponse, SessionToken, SignUpUserInput, User,
+            UserAuthProvider::Password,
+        },
     },
     error::app_error::{
         internal_error, AppError, FailedValidation,
@@ -18,7 +21,7 @@ use axum::{
     http::{header::AUTHORIZATION, Request},
     Extension,
 };
-use chrono::Local;
+use chrono::Utc;
 use email_address::EmailAddress;
 
 /// Creates a new user in the system.
@@ -77,7 +80,7 @@ pub async fn sign_up_user(
         name: input.name.clone(),
         password: Some(password_hash),
         email_verified_at: None,
-        recorded_at: Local::now(),
+        recorded_at: Utc::now().naive_utc(),
     };
     let inserted = state
         .storage

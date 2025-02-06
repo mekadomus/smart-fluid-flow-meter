@@ -7,7 +7,7 @@ use smart_fluid_flow_meter_backend::{
     },
     middleware::auth::DefaultAuthorizer,
     settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, UserStorage},
+    storage::{postgres::PostgresStorage, UserStorage},
 };
 
 use axum::{
@@ -16,7 +16,7 @@ use axum::{
     http::{Method, Request, StatusCode},
     Router,
 };
-use chrono::{DateTime, Duration, Local};
+use chrono::{Duration, NaiveDateTime, Utc};
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http_body_util::BodyExt;
 use mockall::predicate::{always, eq};
@@ -40,7 +40,8 @@ async fn create_app(mail_helper: Arc<dyn MailHelper>, user_helper: Arc<dyn UserH
     let settings = Arc::new(Settings::from_file(
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
-    let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
     let authorizer = Arc::new(DefaultAuthorizer {});
     return smart_fluid_flow_meter_backend::app(
         authorizer,
@@ -367,8 +368,6 @@ async fn sign_up_user_duplicate() {
     );
 }
 
-// Because firestore transactions don't work, we are ignoring this test for now
-#[ignore]
 #[test(tokio::test)]
 async fn sign_up_user_email_failure() {
     let password = "12345678";
@@ -426,7 +425,7 @@ async fn sign_up_user_email_failure() {
 
     // Verify user was not saved
     let id = format!("{}+{}", &input.email, Password);
-    let storage = FirestoreStorage::new("dummy-id", "db-id").await;
+    let storage = PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await;
     assert!(storage.user_by_id(&id).await.unwrap().is_none());
 }
 
@@ -513,16 +512,17 @@ async fn sign_up_to_log_in_to_log_out_happy_path() {
     assert_eq!(body.get("provider").unwrap().as_str().unwrap(), "password");
     assert_eq!(body.get("email").unwrap().as_str().unwrap(), input.email);
     assert!(body.get("password").unwrap().as_str().is_none()); // Password shouldn't be returned
-    let actual_date =
-        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
-    assert!(
-        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
+    let actual_date = NaiveDateTime::parse_from_str(
+        body.get("recorded_at").unwrap().as_str().unwrap(),
+        "%Y-%m-%dT%H:%M:%S%.f",
     );
+    assert!(Utc::now().naive_utc() > actual_date.expect("Bad date"));
     // E-mail hasn't been verified
     assert!(body.get("email_verified_at").unwrap().as_str().is_none());
 
     // Get the token for the user
-    let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
     let id = format!("{}+{}", &input.email, Password);
     let token = match storage.email_verification_by_id(&id).await {
         Ok(v) => v.unwrap().token,
@@ -570,12 +570,13 @@ async fn sign_up_to_log_in_to_log_out_happy_path() {
         "my.user@you.know+password"
     );
     let token = body.get("token").unwrap().as_str().unwrap();
-    let expiration =
-        DateTime::parse_from_rfc3339(body.get("expiration").unwrap().as_str().unwrap())
-            .expect("Bad date")
-            .timestamp_nanos_opt();
-    assert!(Local::now().timestamp_nanos_opt() < expiration);
-    assert!((Local::now() + Duration::days(30)).timestamp_nanos_opt() > expiration);
+    let expires_at = NaiveDateTime::parse_from_str(
+        body.get("expires_at").unwrap().as_str().unwrap(),
+        "%Y-%m-%dT%H:%M:%S%.f",
+    )
+    .expect("Bad date");
+    assert!(Utc::now().naive_utc() < expires_at);
+    assert!((Utc::now().naive_utc() + Duration::days(30)) > expires_at);
 
     // Make a request that requires the token
     let response = app
@@ -602,11 +603,11 @@ async fn sign_up_to_log_in_to_log_out_happy_path() {
     assert_eq!(body.get("provider").unwrap().as_str().unwrap(), "password");
     assert_eq!(body.get("email").unwrap().as_str().unwrap(), input.email);
     assert!(body.get("password").unwrap().as_str().is_none()); // Password shouldn't be returned
-    let actual_date =
-        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
-    assert!(
-        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
+    let actual_date = NaiveDateTime::parse_from_str(
+        body.get("recorded_at").unwrap().as_str().unwrap(),
+        "%Y-%m-%dT%H:%M:%S%.f",
     );
+    assert!(Utc::now().naive_utc() > actual_date.expect("Bad date"));
     assert!(body.get("email_verified_at").unwrap().as_str().is_some());
 
     let response = app

@@ -2,7 +2,7 @@ use smart_fluid_flow_meter_backend::{
     helper::{mail::DefaultMailHelper, user::DefaultUserHelper},
     middleware::auth::DefaultAuthorizer,
     settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, Storage},
+    storage::{postgres::PostgresStorage, Storage},
 };
 
 use std::sync::Arc;
@@ -21,13 +21,9 @@ async fn main() {
     let settings = Arc::new(Settings::new());
     let user_helper = Arc::new(DefaultUserHelper {});
 
-    let storage: Arc<dyn Storage> = Arc::new(
-        FirestoreStorage::new(
-            &settings.database.firestore.project_id,
-            &settings.database.firestore.database_id,
-        )
-        .await,
-    );
+    let storage: Arc<dyn Storage> =
+        Arc::new(PostgresStorage::new(&settings.database.postgres.connection_string).await);
+
     let app = smart_fluid_flow_meter_backend::app(
         authorizer,
         mail_helper,

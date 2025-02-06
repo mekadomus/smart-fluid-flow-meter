@@ -4,7 +4,7 @@ use crate::json::extractor::Extractor;
 use crate::AppState;
 
 use axum::extract::State;
-use chrono::Local;
+use chrono::Utc;
 
 pub async fn save_measurement(
     State(state): State<AppState>,
@@ -14,7 +14,7 @@ pub async fn save_measurement(
         id: None,
         device_id: input.device_id,
         measurement: input.measurement,
-        recorded_at: Local::now(),
+        recorded_at: Utc::now().naive_utc(),
     };
     let inserted = state.storage.save_measurement(measurement).await?;
 

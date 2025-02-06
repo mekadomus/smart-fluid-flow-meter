@@ -1,5 +1,5 @@
 pub mod error;
-pub mod firestore;
+pub mod postgres;
 
 use crate::{
     api::{
@@ -15,7 +15,7 @@ use crate::{
 };
 
 use async_trait::async_trait;
-use chrono::{DateTime, Local};
+use chrono::NaiveDateTime;
 use std::sync::Arc;
 
 #[async_trait]
@@ -34,7 +34,7 @@ pub trait MeasurementStorage {
     async fn get_measurements(
         &self,
         device_id: String,
-        since: DateTime<Local>,
+        since: NaiveDateTime,
         num_records: u32,
     ) -> Result<Vec<Measurement>, Error>;
 }

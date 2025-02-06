@@ -2,7 +2,7 @@ use axum::{
     extract::{Query, State},
     Extension,
 };
-use chrono::Local;
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::{
@@ -87,7 +87,7 @@ pub async fn create_fluid_meter(
         name: name.to_string(),
         status: FluidMeterStatus::Active,
         owner_id: user.id.clone(),
-        recorded_at: Local::now(),
+        recorded_at: Utc::now().naive_utc(),
     };
 
     let meter = match state.storage.insert_fluid_meter(&meter).await {

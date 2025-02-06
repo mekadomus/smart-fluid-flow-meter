@@ -1,13 +1,18 @@
-use crate::api::common::SortDirection;
-use chrono::{DateTime, Local};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+use crate::api::common::SortDirection;
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR")] // Store as a string in the DB
 pub enum FluidMeterStatus {
+    #[sqlx(rename = "active")]
     Active,
     // Still shown to the user, but not triggering alarms
+    #[sqlx(rename = "inactive")]
     Inactive,
-    // Not showen to the user
+    // Not shown to the user
+    #[sqlx(rename = "deleted")]
     Deleted,
 }
 
@@ -17,13 +22,13 @@ pub enum FluidMetersSort {
     Name,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct FluidMeter {
     pub id: String,
     pub owner_id: String,
     pub name: String,
     pub status: FluidMeterStatus,
-    pub recorded_at: DateTime<Local>,
+    pub recorded_at: NaiveDateTime,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
