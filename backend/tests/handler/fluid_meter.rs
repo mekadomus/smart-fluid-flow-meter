@@ -4,7 +4,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use chrono::Local;
+use chrono::Utc;
 use http_body_util::BodyExt;
 use mockall::predicate::always;
 use std::sync::Arc;
@@ -20,14 +20,15 @@ use smart_fluid_flow_meter_backend::{
     helper::{mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, Storage},
+    storage::{postgres::PostgresStorage, Storage},
 };
 
 async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
-    let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
     let mut authorizer = MockAuthorizer::new();
     authorizer
         .expect_authorize()
@@ -40,7 +41,7 @@ async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
                 email: "carlos@example.com".to_string(),
                 password: None,
                 email_verified_at: None,
-                recorded_at: Local::now(),
+                recorded_at: Utc::now().naive_utc(),
             };
             request.extensions_mut().insert(user);
 
@@ -94,7 +95,7 @@ async fn get_fluid_meters_filters() {
         name: "kitchen".to_string(),
         owner_id: user_id.to_string(),
         status: FluidMeterStatus::Active,
-        recorded_at: Local::now(),
+        recorded_at: Utc::now().naive_utc(),
     };
     let mut fluid_meter_2 = fluid_meter_1.clone();
     fluid_meter_2.id = (user_id + 1).to_string();
@@ -201,7 +202,7 @@ async fn create_fluid_meter() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let resp: FluidMeter = serde_json::from_slice(&body).unwrap();
     assert_eq!(resp.name, name);
-    assert!(Local::now().timestamp_nanos_opt() > resp.recorded_at.timestamp_nanos_opt());
+    assert!(Utc::now().naive_utc() > resp.recorded_at);
     assert_eq!(resp.owner_id, user_id.to_string());
     assert_eq!(resp.status, FluidMeterStatus::Active);
     assert!(Uuid::try_parse(&resp.id).is_ok());

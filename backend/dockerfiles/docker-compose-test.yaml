@@ -6,13 +6,13 @@ services:
       dockerfile: dockerfiles/dev
       context: ../
     env_file: "../.env.sample"
-    environment:
-      FIRESTORE_EMULATOR_HOST: 'firestore:8200'
-      GOOGLE_APPLICATION_CREDENTIALS: "/service-account-key.json"
     depends_on:
-      firestore:
+      postgres:
         condition: service_healthy
     volumes:
+      - type: bind
+        source: ../assets
+        target: /smart-fluid-flow-meter/assets
       - type: bind
         source: ../src
         target: /smart-fluid-flow-meter/src
@@ -31,21 +31,20 @@ services:
       - type: bind
         source: ../build/registry
         target: /usr/local/cargo/registry
-      - type: bind
-        source: ../service-account-key.json
-        target: /service-account-key.json
     command: >
       sh -c "RUST_BACKTRACE=1 cargo test -- --nocapture --show-output"
 
-  firestore:
-    build:
-      dockerfile: ../dockerfiles/firestore-emulator
-      context: .
+  postgres:
+    image: postgres:17.2
+    environment:
+      POSTGRES_DB: 'mekadomus'
+      POSTGRES_USER: 'user'
+      POSTGRES_PASSWORD: 'password'
     ports:
-      - '8200:8200'
+      - '5432:5432'
     expose:
-      - '8200'
+      - '5432'
     healthcheck:
-        test: "curl 0.0.0.0:8200"
-        timeout: 20s
-        retries: 10
+        test: "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+        timeout: 10s
+        retries: 5

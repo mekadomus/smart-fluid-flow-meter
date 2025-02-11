@@ -3,7 +3,7 @@ use smart_fluid_flow_meter_backend::{
     helper::{mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
-    storage::{firestore::FirestoreStorage, Storage},
+    storage::{postgres::PostgresStorage, Storage},
 };
 
 use axum::{
@@ -12,7 +12,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use chrono::{DateTime, Local};
+use chrono::{NaiveDateTime, Utc};
 use http_body_util::BodyExt;
 use mockall::predicate::always;
 use serde_json::{json, Value};
@@ -24,7 +24,8 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
-    let storage = Arc::new(FirestoreStorage::new("dummy-id", "db-id").await);
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
     let mut authorizer = MockAuthorizer::new();
     authorizer
         .expect_authorize()
@@ -104,15 +105,15 @@ async fn save_measurement_success() {
         body.get("measurement").unwrap().as_str().unwrap(),
         input.measurement
     );
-    let actual_date =
-        DateTime::parse_from_rfc3339(body.get("recorded_at").unwrap().as_str().unwrap());
-    assert!(
-        Local::now().timestamp_nanos_opt() > actual_date.expect("Bad date").timestamp_nanos_opt()
+    let actual_date = NaiveDateTime::parse_from_str(
+        body.get("recorded_at").unwrap().as_str().unwrap(),
+        "%Y-%m-%dT%H:%M:%S%.f",
     );
+    assert!(Utc::now().naive_utc() > actual_date.expect("Bad date"));
 }
 
 #[tokio::test]
-async fn save_measurement_ignores_duplicate_firestore() {
+async fn save_measurement_ignores_duplicate() {
     let (app, storage) = create_app().await;
 
     let input = SaveMeasurementInput {
@@ -150,7 +151,7 @@ async fn save_measurement_ignores_duplicate_firestore() {
     assert_eq!(response.status(), StatusCode::OK);
 
     match storage
-        .get_measurements("666".to_string(), Local::now(), 10)
+        .get_measurements("666".to_string(), Utc::now().naive_utc(), 10)
         .await
     {
         Ok(f) => {

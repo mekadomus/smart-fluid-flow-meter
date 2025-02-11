@@ -2,9 +2,8 @@ service:
   cors_domains: ""
   port: 9899
 database:
-  firestore:
-    project_id: ""
-    database_id: ""
+  postgres:
+    connection_string: ""
 captcha:
   secret: "my_secret"
 mail:

@@ -12,11 +12,9 @@ The easiest way to run locally is to use:
 make start
 ```
 
-This command uses docker compose to start a firestore emulator container and another container running the backend. The backend will use `.env.sample` for configuration.
+This command uses docker compose to start a PostgreSQL container and another container running the backend. The backend will use `.env.sample` for configuration.
 
 ## Tests
-
-Sadly, firestore requires a service account key to work even when connecting to an emulator, so we need to create one from [google cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts). It's not necessary to give any permissions to the service account. Save the json key to a file named `service-account-key.json` in the same directory as this README file.
 
 To run tests:
 
@@ -30,9 +28,7 @@ This section pertains to the official deployment of this service. It can be safe
 
 ## Connecting to production DB
 
-The official deployment uses Firestore for storage. To run the backend locally and connect to the production database we need an Google Cloud JSON key that allows to write access to the correct database.
-
-Put the key in a file named `service-account-key.json` in the same folder as this README file and run using this command:
+The official deployment uses a PostgreSQL host for storage. To run the backend locally and connect to the production database we just need to use the production connection string in our .env file and run this command:
 
 ```
 make start-prod
