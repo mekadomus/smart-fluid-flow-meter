@@ -17,7 +17,7 @@ use crate::{
 impl FluidMeterStorage for PostgresStorage {
     async fn get_fluid_meters(
         &self,
-        user: &String,
+        user: &str,
         options: &FluidMetersInput,
     ) -> Result<Vec<FluidMeter>, Error> {
         let page_size = options.page_size.unwrap_or(*DEFAULT_PAGE_SIZE) as i32;
@@ -138,10 +138,31 @@ impl FluidMeterStorage for PostgresStorage {
         };
     }
 
+    async fn get_fluid_meter_by_id(&self, id: &str) -> Result<Option<FluidMeter>, Error> {
+        match sqlx::query_as("SELECT * FROM fluid_meter WHERE id = $1")
+            .bind(&id)
+            .fetch_one(&self.pool)
+            .await
+        {
+            Ok(f) => return Ok(Some(f)),
+            Err(e) => {
+                match e {
+                    sqlx::Error::RowNotFound => {
+                        return Ok(None);
+                    }
+                    _ => {}
+                }
+
+                error!("Error getting fluid_meter by id. {}", e);
+                return undefined();
+            }
+        };
+    }
+
     async fn is_fluid_meter_owner(
         &self,
-        fluid_meter_id: &String,
-        account_id: &String,
+        fluid_meter_id: &str,
+        account_id: &str,
     ) -> Result<bool, Error> {
         match sqlx::query("SELECT * FROM fluid_meter WHERE id = $1 AND owner_id = $2")
             .bind(&fluid_meter_id)
@@ -158,7 +179,7 @@ impl FluidMeterStorage for PostgresStorage {
                     _ => {}
                 }
 
-                error!("Error getting fluid_meter by id. {}", e);
+                error!("Error getting fluid_meter for user by id. {}", e);
                 return undefined();
             }
         };

@@ -8,32 +8,50 @@ use uuid::Uuid;
 use crate::{
     api::{
         common::{Series, SeriesGranularity, SeriesItem},
+        fluid_meter::FluidMeterStatus::Active,
         measurement::{Measurement, SaveMeasurementInput},
         user::User,
     },
-    error::app_error::{AppError, FailedValidation, ValidationIssue::Invalid},
+    error::app_error::{validation_error, AppError, FailedValidation, ValidationIssue::Invalid},
     json::extractor::Extractor,
     AppState,
 };
 
 pub async fn save_measurement(
     State(state): State<AppState>,
+    user: Extension<User>,
     Extractor(input): Extractor<SaveMeasurementInput>,
 ) -> Result<Extractor<Measurement>, AppError> {
-    let measurement = Measurement {
-        id: None,
-        device_id: input.device_id,
-        measurement: input.measurement,
-        recorded_at: Utc::now().naive_utc(),
-    };
-    let inserted = state.storage.save_measurement(measurement).await?;
+    let meter = state
+        .storage
+        .get_fluid_meter_by_id(&input.device_id)
+        .await?;
+    match meter {
+        Some(m) => {
+            if m.owner_id == user.id && m.status == Active {
+                let measurement = Measurement {
+                    id: None,
+                    device_id: input.device_id,
+                    measurement: input.measurement,
+                    recorded_at: Utc::now().naive_utc(),
+                };
+                let inserted = state.storage.save_measurement(measurement).await?;
 
-    Ok(Extractor(Measurement {
-        id: inserted.id,
-        device_id: inserted.device_id,
-        measurement: inserted.measurement,
-        recorded_at: inserted.recorded_at,
-    }))
+                return Ok(Extractor(Measurement {
+                    id: inserted.id,
+                    device_id: inserted.device_id,
+                    measurement: inserted.measurement,
+                    recorded_at: inserted.recorded_at,
+                }));
+            }
+        }
+        None => {}
+    }
+
+    return validation_error(vec![FailedValidation {
+        field: "device_id".to_string(),
+        issue: Invalid,
+    }]);
 }
 
 fn create_series(measurements: &Vec<Measurement>, start_time: &NaiveDateTime) -> Series {

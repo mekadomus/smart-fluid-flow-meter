@@ -131,3 +131,7 @@ impl IntoResponse for AppError {
 pub fn internal_error<T>() -> Result<T, AppError> {
     return Err(AppError::ServerError);
 }
+
+pub fn validation_error<T>(validation_errors: Vec<FailedValidation>) -> Result<T, AppError> {
+    return Err(AppError::ValidationError(validation_errors));
+}
