@@ -22,6 +22,29 @@ use crate::{
 
 #[async_trait]
 impl UserStorage for PostgresStorage {
+    /// Used in tests. Production users should use sign_up_user
+    async fn insert_user(&self, user: &User) -> Result<User, Error> {
+        match sqlx::query("INSERT INTO account(id, provider, email, password, name, email_verified_at, recorded_at) VALUES($1, $2, $3, $4, $5, $6, $7)")
+        .bind(&user.id)
+        .bind(&user.provider)
+        .bind(&user.email)
+        .bind(&user.password)
+        .bind(&user.name)
+        .bind(&user.email_verified_at)
+        .bind(&user.recorded_at)
+        .execute(&self.pool)
+        .await
+        {
+            Ok(_) => {},
+            Err(err) => {
+                error!("Error inserting user: {}", err);
+                return undefined();
+            }
+        };
+
+        return Ok(user.clone());
+    }
+
     /// Saves a new user to the DB, creates an e-mail verification token and sends
     /// an e-mail for verification. The user needs to verify their e-mail before
     /// they can use their accout

@@ -16,7 +16,8 @@ CREATE TABLE fluid_meter (
   name VARCHAR(255) NOT NULL,
   status VARCHAR(255) NOT NULL,
   recorded_at TIMESTAMP NOT NULL,
-  PRIMARY KEY(id)
+  PRIMARY KEY(id),
+  CONSTRAINT fk_owner_id FOREIGN KEY(owner_id) REFERENCES account(id)
 );
 
 CREATE TABLE measurement (
@@ -24,21 +25,24 @@ CREATE TABLE measurement (
   device_id VARCHAR(255) NOT NULL,
   measurement VARCHAR(255) NOT NULL,
   recorded_at TIMESTAMP NOT NULL,
-  PRIMARY KEY(id)
+  PRIMARY KEY(id),
+  CONSTRAINT fk_device_id FOREIGN KEY(device_id) REFERENCES fluid_meter(id)
 );
 
 CREATE TABLE session_token (
   token VARCHAR(255) NOT NULL,
   account_id VARCHAR(255) NOT NULL,
   expires_at TIMESTAMP NOT NULL,
-  PRIMARY KEY(token)
+  PRIMARY KEY(token),
+  CONSTRAINT fk_account_id FOREIGN KEY(account_id) REFERENCES account(id)
 );
 
 CREATE TABLE email_verification (
   token VARCHAR(100) NOT NULL,
   account_id VARCHAR(255) NOT NULL,
   recorded_at TIMESTAMP NOT NULL,
-  PRIMARY KEY(token)
+  PRIMARY KEY(token),
+  CONSTRAINT fk_account_id FOREIGN KEY(account_id) REFERENCES account(id)
 );
 
 CREATE INDEX idx_fluid_meter_name ON fluid_meter(name);

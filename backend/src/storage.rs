@@ -41,6 +41,7 @@ pub trait MeasurementStorage {
 
 #[async_trait]
 pub trait UserStorage {
+    async fn insert_user(&self, user: &User) -> Result<User, Error>;
     async fn sign_up_user(
         &self,
         user: User,
