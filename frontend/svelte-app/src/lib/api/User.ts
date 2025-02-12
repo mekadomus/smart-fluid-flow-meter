@@ -59,5 +59,9 @@ export async function me(auth_token: string): Promise<ErrorResponse | User> {
  */
 export async function logOut(): Promise<number> {
   const res = await httpPostBrowser(`/v1/log-out`, {});
-  return res.status;
+  if ('code' in res) {
+    return 500;
+  }
+
+  return 200;
 }
