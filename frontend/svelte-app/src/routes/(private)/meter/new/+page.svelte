@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   import { getContext } from 'svelte';
+  import { goto } from '$app/navigation';
 
   import MdCenteredContainer from '@components/MdCenteredContainer.svelte';
   import type { CreateFluidMeterInput } from '@api/FluidMeter';
@@ -24,12 +25,7 @@
     };
     const res = await createFluidMeter(data);
     if ('owner_id' in res) {
-      let message: Message = {
-        type: MessageType.Success,
-        text: `Meter ${name.value} created successfully`
-      };
-      globalMessages.set('new-meter-success', message);
-      name.value = '';
+      goto(`/meter/${res.id}/created?name=${encodeURI(res.name)}`);
     } else {
       let message: Message = {
         type: MessageType.Error,

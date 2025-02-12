@@ -50,6 +50,5 @@ export async function getFluidMetersBrowser(
 export async function createFluidMeter(
   input: CreateFluidMeterInput
 ): Promise<FluidMeter | ErrorResponse> {
-  const res = await httpPostBrowser(`/v1/fluid-meter`, input);
-  return res.json();
+  return await httpPostBrowser(`/v1/fluid-meter`, input);
 }
