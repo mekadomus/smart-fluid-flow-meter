@@ -1,9 +1,13 @@
 use smart_fluid_flow_meter_backend::{
-    api::measurement::SaveMeasurementInput,
+    api::{
+        fluid_meter::{FluidMeter, FluidMeterStatus::Active},
+        measurement::SaveMeasurementInput,
+        user::{User, UserAuthProvider::Password},
+    },
     helper::{mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
-    storage::{postgres::PostgresStorage, Storage},
+    storage::{postgres::PostgresStorage, FluidMeterStorage, Storage, UserStorage},
 };
 
 use axum::{
@@ -20,12 +24,44 @@ use std::sync::Arc;
 use test_log::test;
 use tower::util::ServiceExt;
 
+pub const DEVICE_ID: &'static str = "999";
+pub const DEVICE_ID2: &'static str = "666";
+
 async fn create_app() -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
     let storage =
         Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+
+    let user_id = "a@b.c+password";
+    let user = User {
+        id: user_id.to_string(),
+        provider: Password,
+        name: "Carlos".to_string(),
+        email: "a@b.c".to_string(),
+        password: Some("hello".to_string()),
+        email_verified_at: Some(Utc::now().naive_utc()),
+        recorded_at: Utc::now().naive_utc(),
+    };
+    let fm = FluidMeter {
+        id: DEVICE_ID.to_string(),
+        owner_id: user_id.to_string(),
+        name: "kitchen".to_string(),
+        status: Active,
+        recorded_at: Utc::now().naive_utc(),
+    };
+    let fm2 = FluidMeter {
+        id: DEVICE_ID2.to_string(),
+        owner_id: user_id.to_string(),
+        name: "kitchen".to_string(),
+        status: Active,
+        recorded_at: Utc::now().naive_utc(),
+    };
+    let _ = storage.insert_user(&user).await;
+    let _ = storage.insert_fluid_meter(&fm).await;
+    let _ = storage.insert_fluid_meter(&fm2).await;
+
     let mut authorizer = MockAuthorizer::new();
     authorizer
         .expect_authorize()
@@ -77,7 +113,7 @@ async fn save_measurement_success() {
     let (app, _) = create_app().await;
 
     let input = SaveMeasurementInput {
-        device_id: "999".to_string(),
+        device_id: DEVICE_ID.to_string(),
         measurement: "134".to_string(),
     };
     let response = app
@@ -117,7 +153,7 @@ async fn save_measurement_ignores_duplicate() {
     let (app, storage) = create_app().await;
 
     let input = SaveMeasurementInput {
-        device_id: "666".to_string(),
+        device_id: DEVICE_ID2.to_string(),
         measurement: "3.781159".to_string(),
     };
     let response = app
@@ -151,7 +187,7 @@ async fn save_measurement_ignores_duplicate() {
     assert_eq!(response.status(), StatusCode::OK);
 
     match storage
-        .get_measurements("666".to_string(), Utc::now().naive_utc(), 10)
+        .get_measurements(DEVICE_ID2.to_string(), Utc::now().naive_utc(), 10)
         .await
     {
         Ok(f) => {

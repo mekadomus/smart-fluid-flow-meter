@@ -15,12 +15,12 @@ use smart_fluid_flow_meter_backend::{
     api::{
         common::PaginatedResponse,
         fluid_meter::{CreateFluidMeterInput, FluidMeter, FluidMeterStatus},
-        user::{User, UserAuthProvider},
+        user::{User, UserAuthProvider::Password},
     },
     helper::{mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
-    storage::{postgres::PostgresStorage, Storage},
+    storage::{postgres::PostgresStorage, Storage, UserStorage},
 };
 
 async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
@@ -29,6 +29,18 @@ async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
     ));
     let storage =
         Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+
+    let user = User {
+        id: user_id.to_string(),
+        provider: Password,
+        name: "Carlos".to_string(),
+        email: "a@b.c".to_string(),
+        password: Some("hello".to_string()),
+        email_verified_at: Some(Utc::now().naive_utc()),
+        recorded_at: Utc::now().naive_utc(),
+    };
+    let _ = storage.insert_user(&user).await;
+
     let mut authorizer = MockAuthorizer::new();
     authorizer
         .expect_authorize()
@@ -36,7 +48,7 @@ async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
         .returning(move |_, request| {
             let user = User {
                 id: user_id.to_string(),
-                provider: UserAuthProvider::Password,
+                provider: Password,
                 name: "Carlos".to_string(),
                 email: "carlos@example.com".to_string(),
                 password: None,
