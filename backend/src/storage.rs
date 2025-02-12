@@ -22,14 +22,15 @@ use std::sync::Arc;
 pub trait FluidMeterStorage {
     async fn get_fluid_meters(
         &self,
-        user: &String,
+        user: &str,
         filters: &FluidMetersInput,
     ) -> Result<Vec<FluidMeter>, Error>;
+    async fn get_fluid_meter_by_id(&self, id: &str) -> Result<Option<FluidMeter>, Error>;
     async fn insert_fluid_meter(&self, fluid_meter: &FluidMeter) -> Result<FluidMeter, Error>;
     async fn is_fluid_meter_owner(
         &self,
-        account_id: &String,
-        fluid_meter_id: &String,
+        fluid_meter_id: &str,
+        account_id: &str,
     ) -> Result<bool, Error>;
 }
 

@@ -1,7 +1,10 @@
 use smart_fluid_flow_meter_backend::{
     api::{
         common::{Series, SeriesGranularity::Hour},
-        fluid_meter::{FluidMeter, FluidMeterStatus::Active},
+        fluid_meter::{
+            FluidMeter,
+            FluidMeterStatus::{Active, Inactive},
+        },
         measurement::SaveMeasurementInput,
         user::{User, UserAuthProvider::Password},
     },
@@ -27,6 +30,7 @@ use tower::util::ServiceExt;
 
 pub const DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89001";
 pub const DEVICE_ID2: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89002";
+pub const INACTIVE_DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89003";
 
 async fn create_app() -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
@@ -59,9 +63,17 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
         status: Active,
         recorded_at: Utc::now().naive_utc(),
     };
+    let fm3 = FluidMeter {
+        id: INACTIVE_DEVICE_ID.to_string(),
+        owner_id: user_id.to_string(),
+        name: "kitchen".to_string(),
+        status: Inactive,
+        recorded_at: Utc::now().naive_utc(),
+    };
     let _ = storage.insert_user(&user).await;
     let _ = storage.insert_fluid_meter(&fm).await;
     let _ = storage.insert_fluid_meter(&fm2).await;
+    let _ = storage.insert_fluid_meter(&fm3).await;
 
     let mut authorizer = MockAuthorizer::new();
     authorizer
@@ -110,6 +122,52 @@ async fn save_measurement_invalid_json() {
         body,
         json!({ "code": "InvalidInput", "data": "", "message": "Invalid JSON for this endpoint" })
     );
+}
+
+#[test(tokio::test)]
+async fn save_measurement_not_owner() {
+    let (app, _) = create_app().await;
+
+    let input = SaveMeasurementInput {
+        device_id: "some-dev-id".to_string(),
+        measurement: "134".to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/measurement")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[test(tokio::test)]
+async fn save_measurement_inactive() {
+    let (app, _) = create_app().await;
+
+    let input = SaveMeasurementInput {
+        device_id: INACTIVE_DEVICE_ID.to_string(),
+        measurement: "134".to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/measurement")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[test(tokio::test)]
