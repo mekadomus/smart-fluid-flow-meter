@@ -1,5 +1,5 @@
 import type { ErrorResponse } from './Error';
-import type { PaginatedResponse } from './Common';
+import type { PaginatedResponse, Series } from './Common';
 
 import { PAGE_SIZE } from './Common';
 import { httpGet } from '../utils/Http';
@@ -51,4 +51,20 @@ export async function createFluidMeter(
   input: CreateFluidMeterInput
 ): Promise<FluidMeter | ErrorResponse> {
   return await httpPostBrowser(`/v1/fluid-meter`, input);
+}
+
+/**
+ * Get the measurements for the given meter
+ */
+export async function getMeasurements(
+  token: string,
+  meter: string
+): Promise<Series | ErrorResponse> {
+  const res = await httpGet(`/v1/fluid-meter/${meter}/measurement`, token);
+  return res.json().catch(() => {
+    return {
+      code: 'InternalError',
+      message: 'We encountered an error'
+    };
+  });
 }
