@@ -7,7 +7,7 @@ use crate::{
         fluid_meter::{FluidMeter, FluidMetersInput, FluidMetersSort},
     },
     storage::{
-        error::{Error, ErrorCode},
+        error::{undefined, Error, ErrorCode},
         postgres::PostgresStorage,
         FluidMeterStorage,
     },
@@ -134,6 +134,32 @@ impl FluidMeterStorage for PostgresStorage {
                 return Err(Error {
                     code: ErrorCode::UndefinedError,
                 });
+            }
+        };
+    }
+
+    async fn is_fluid_meter_owner(
+        &self,
+        fluid_meter_id: &String,
+        account_id: &String,
+    ) -> Result<bool, Error> {
+        match sqlx::query("SELECT * FROM fluid_meter WHERE id = $1 AND owner_id = $2")
+            .bind(&fluid_meter_id)
+            .bind(&account_id)
+            .fetch_one(&self.pool)
+            .await
+        {
+            Ok(_) => return Ok(true),
+            Err(e) => {
+                match e {
+                    sqlx::Error::RowNotFound => {
+                        return Ok(false);
+                    }
+                    _ => {}
+                }
+
+                error!("Error getting fluid_meter by id. {}", e);
+                return undefined();
             }
         };
     }

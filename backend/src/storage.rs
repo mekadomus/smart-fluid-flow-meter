@@ -26,6 +26,11 @@ pub trait FluidMeterStorage {
         filters: &FluidMetersInput,
     ) -> Result<Vec<FluidMeter>, Error>;
     async fn insert_fluid_meter(&self, fluid_meter: &FluidMeter) -> Result<FluidMeter, Error>;
+    async fn is_fluid_meter_owner(
+        &self,
+        account_id: &String,
+        fluid_meter_id: &String,
+    ) -> Result<bool, Error>;
 }
 
 #[async_trait]

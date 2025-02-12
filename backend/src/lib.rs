@@ -13,7 +13,7 @@ use crate::{
     handler::{
         fluid_meter::{create_fluid_meter, fluid_meters},
         health::health_check,
-        measurement::save_measurement,
+        measurement::{get_measurements_for_meter, save_measurement},
         user::{email_verification, log_in_user, log_out_user, me, sign_up_user},
     },
     helper::{mail::MailHelper, user::UserHelper},
@@ -92,6 +92,10 @@ pub async fn app(
         .route("/v1/email-verification", get(email_verification))
         .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/fluid-meter", post(create_fluid_meter))
+        .route(
+            "/v1/fluid-meter/{meter_id}/measurement",
+            get(get_measurements_for_meter),
+        )
         .route("/v1/log-in", post(log_in_user))
         .route("/v1/log-out", post(log_out_user))
         .route("/v1/me", get(me))
