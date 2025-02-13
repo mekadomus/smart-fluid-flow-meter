@@ -70,8 +70,9 @@
       <div id="client-error" class="error-msg">Credentials are not valid. Try again.</div>
       <button class="button" type="submit" onclick={(e: Event) => login(e)}>Log In</button>
     </div>
-    <div class="form-group">
-      <a class="button2" href="/sign-up">I don't have an account</a>
+    <div class="form-group links">
+      <a class="" href="/password-recovery">Forgot my password</a><br />
+      <a class="" href="/sign-up">I don't have an account</a>
     </div>
   </form>
 </div>
@@ -92,10 +93,6 @@
     text-align: center;
   }
 
-  a {
-    margin-top: 3rem;
-  }
-
   label,
   input {
     display: block;
@@ -113,5 +110,10 @@
   .error-msg {
     margin-bottom: 15px;
     display: none;
+  }
+
+  .links {
+    margin-top: 3rem;
+    font-size: 0.9em;
   }
 </style>
