@@ -246,7 +246,7 @@ async fn save_measurement_ignores_duplicate() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
     match storage
         .get_measurements(DEVICE_ID2.to_string(), Utc::now().naive_utc(), 10)

@@ -2,9 +2,10 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ErrorCode {
-    UndefinedError,
     DuplicateError,
     NotFoundError,
+    RateLimitError,
+    UndefinedError,
 }
 
 #[derive(Clone, Debug)]
@@ -29,5 +30,11 @@ pub fn not_found<T>() -> Result<T, Error> {
 pub fn undefined<T>() -> Result<T, Error> {
     Err(Error {
         code: ErrorCode::UndefinedError,
+    })
+}
+
+pub fn rate_limit<T>() -> Result<T, Error> {
+    Err(Error {
+        code: ErrorCode::RateLimitError,
     })
 }

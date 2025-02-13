@@ -12,8 +12,12 @@ use crate::{
         measurement::{Measurement, SaveMeasurementInput},
         user::User,
     },
-    error::app_error::{validation_error, AppError, FailedValidation, ValidationIssue::Invalid},
+    error::app_error::{
+        internal_error, validation_error, AppError, FailedValidation,
+        ValidationIssue::{Invalid, TooFrequent},
+    },
     json::extractor::Extractor,
+    storage::error::ErrorCode::RateLimitError,
     AppState,
 };
 
@@ -30,19 +34,26 @@ pub async fn save_measurement(
         Some(m) => {
             if m.owner_id == user.id && m.status == Active {
                 let measurement = Measurement {
-                    id: None,
+                    id: Uuid::new_v4().to_string(),
                     device_id: input.device_id,
                     measurement: input.measurement,
                     recorded_at: Utc::now().naive_utc(),
                 };
-                let inserted = state.storage.save_measurement(measurement).await?;
+                match state.storage.save_measurement(&measurement).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        if e.code == RateLimitError {
+                            let validation_errors = vec![FailedValidation {
+                                field: "request".to_string(),
+                                issue: TooFrequent,
+                            }];
+                            return validation_error(validation_errors);
+                        }
+                        return internal_error();
+                    }
+                }
 
-                return Ok(Extractor(Measurement {
-                    id: inserted.id,
-                    device_id: inserted.device_id,
-                    measurement: inserted.measurement,
-                    recorded_at: inserted.recorded_at,
-                }));
+                return Ok(Extractor(measurement));
             }
         }
         None => {}
@@ -126,6 +137,7 @@ pub async fn get_measurements_for_meter(
 #[cfg(test)]
 mod tests {
     use chrono::{Duration, Utc};
+    use uuid::Uuid;
 
     use super::create_series;
     use crate::api::{
@@ -139,37 +151,37 @@ mod tests {
         let one_month_ago = now - Duration::days(30);
         let measuments = vec![
             Measurement {
-                id: None,
+                id: Uuid::new_v4().to_string(),
                 device_id: "device_id".to_string(),
                 measurement: 5.5.to_string(),
                 recorded_at: now,
             },
             Measurement {
-                id: None,
+                id: Uuid::new_v4().to_string(),
                 device_id: "device_id".to_string(),
                 measurement: 1.to_string(),
                 recorded_at: now - Duration::minutes(40),
             },
             Measurement {
-                id: None,
+                id: Uuid::new_v4().to_string(),
                 device_id: "device_id".to_string(),
                 measurement: 22.3.to_string(),
                 recorded_at: now - Duration::minutes(60),
             },
             Measurement {
-                id: None,
+                id: Uuid::new_v4().to_string(),
                 device_id: "device_id".to_string(),
                 measurement: 1.to_string(),
                 recorded_at: now - Duration::minutes(80),
             },
             Measurement {
-                id: None,
+                id: Uuid::new_v4().to_string(),
                 device_id: "device_id".to_string(),
                 measurement: 2.to_string(),
                 recorded_at: now - Duration::minutes(100),
             },
             Measurement {
-                id: None,
+                id: Uuid::new_v4().to_string(),
                 device_id: "device_id".to_string(),
                 measurement: 3.to_string(),
                 recorded_at: now - Duration::minutes(120),

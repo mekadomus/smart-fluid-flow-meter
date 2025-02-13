@@ -9,7 +9,7 @@ pub struct SaveMeasurementInput {
 
 #[derive(Clone, Deserialize, Serialize, sqlx::FromRow)]
 pub struct Measurement {
-    pub id: Option<String>,
+    pub id: String,
     pub device_id: String,
     pub measurement: String,
     pub recorded_at: NaiveDateTime,

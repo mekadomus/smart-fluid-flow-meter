@@ -36,7 +36,7 @@ pub trait FluidMeterStorage {
 
 #[async_trait]
 pub trait MeasurementStorage {
-    async fn save_measurement(&self, measurement: Measurement) -> Result<Measurement, Error>;
+    async fn save_measurement(&self, measurement: &Measurement) -> Result<Measurement, Error>;
     async fn get_measurements(
         &self,
         device_id: String,
