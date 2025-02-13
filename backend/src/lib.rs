@@ -78,6 +78,12 @@ pub async fn app(
     storage: Arc<dyn Storage>,
     user_helper: Arc<dyn UserHelper>,
 ) -> Router {
+    let _ = tracing_subscriber::fmt()
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_names(true)
+        .try_init();
+
     let state = AppState {
         authorizer,
         mail_helper,

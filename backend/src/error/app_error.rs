@@ -60,6 +60,7 @@ pub enum ValidationIssue {
     Invalid,
     Required,
     TooLarge,
+    TooFrequent,
     TooWeak,
 }
 

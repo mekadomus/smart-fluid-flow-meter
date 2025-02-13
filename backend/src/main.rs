@@ -11,11 +11,6 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_thread_names(true)
-        .with_line_number(true)
-        .init();
-
     let authorizer = Arc::new(DefaultAuthorizer {});
     let mail_helper = Arc::new(DefaultMailHelper {});
     let settings = Arc::new(Settings::new());
