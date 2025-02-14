@@ -47,7 +47,16 @@ pub trait MeasurementStorage {
 
 #[async_trait]
 pub trait UserStorage {
+    async fn email_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, Error>;
     async fn insert_user(&self, user: &User) -> Result<User, Error>;
+    async fn log_in(&self, id: &str) -> Result<SessionToken, Error>;
+    async fn log_out(&self, token: &str) -> Result<(), Error>;
+    async fn password_recovery(
+        &self,
+        user: &User,
+        settings: Arc<Settings>,
+        mail_helper: Arc<dyn MailHelper>,
+    ) -> Result<(), Error>;
     async fn sign_up_user(
         &self,
         user: User,
@@ -57,9 +66,6 @@ pub trait UserStorage {
     async fn user_by_id(&self, id: &str) -> Result<Option<User>, Error>;
     async fn user_by_token(&self, token: &str) -> Result<Option<User>, Error>;
     async fn verify_email(&self, token: &str) -> Result<User, Error>;
-    async fn email_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, Error>;
-    async fn log_in(&self, id: &str) -> Result<SessionToken, Error>;
-    async fn log_out(&self, token: &str) -> Result<(), Error>;
 }
 
 #[async_trait]

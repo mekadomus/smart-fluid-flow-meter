@@ -14,7 +14,7 @@ use crate::{
     },
     settings::settings::Settings,
     storage::{
-        error::{not_found, undefined, Error},
+        error::{not_found, rate_limit, undefined, Error},
         postgres::PostgresStorage,
         UserStorage,
     },
@@ -280,5 +280,83 @@ impl UserStorage for PostgresStorage {
                 return undefined();
             }
         };
+    }
+
+    async fn password_recovery(
+        &self,
+        user: &User,
+        settings: Arc<Settings>,
+        mail_helper: Arc<dyn MailHelper>,
+    ) -> Result<(), Error> {
+        // Delete all old password recovery tokens just so we don't have
+        // unnecessary information in the DB
+        match sqlx::query("DELETE FROM password_recovery WHERE expires_at < $1")
+            .bind(Utc::now().naive_utc())
+            .execute(&self.pool)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Error deleting password recovery tokens: {}", e);
+                return undefined();
+            }
+        };
+
+        // Don't allow the user to recover password more than every 30 minutes
+        match sqlx::query("SELECT * FROM password_recovery WHERE account_id = $1")
+            .bind(&user.id)
+            .fetch_one(&self.pool)
+            .await
+        {
+            Ok(_) => {
+                error!("Throttling password_recovery for user: {}", &user.id);
+                return rate_limit();
+            }
+            Err(e) => match e {
+                sqlx::Error::RowNotFound => {}
+                _ => {
+                    error!("Error: {}", e);
+                    return undefined();
+                }
+            },
+        };
+
+        let mut tx = match self.pool.begin().await {
+            Ok(t) => t,
+            Err(e) => {
+                error!("Error creating transaction. {}", e);
+                return undefined();
+            }
+        };
+
+        let token = alphanumeric(&100);
+        match sqlx::query(
+            "INSERT INTO password_recovery(token, account_id, expires_at, recorded_at) VALUES($1, $2, $3, $4)",
+        )
+        .bind(&token)
+        .bind(&user.id)
+        .bind(Utc::now().naive_utc() + Duration::minutes(30))
+        .bind(Utc::now().naive_utc())
+        .execute(&mut *tx)
+        .await
+        {
+            Ok(_) => {
+                if !mail_helper
+                    .password_recovery(&settings, &user, &token)
+                    .await
+                {
+                    let _ = tx.rollback().await;
+                    error!("Couldn't send password recovery email");
+                    return undefined();
+                }
+            }
+            Err(e) => {
+                error!("Error saving password_recovery: {}", e);
+                return undefined();
+            }
+        };
+
+        let _ = tx.commit().await;
+        return Ok(());
     }
 }

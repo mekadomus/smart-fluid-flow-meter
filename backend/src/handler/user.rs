@@ -2,16 +2,16 @@ use crate::{
     api::{
         email_verification::EmailVerificationInput,
         user::{
-            LogInUserInput, LogOutUserResponse, SessionToken, SignUpUserInput, User,
-            UserAuthProvider::Password,
+            LogInUserInput, LogOutUserResponse, RecoverPasswordInput, RecoverPasswordResponse,
+            SessionToken, SignUpUserInput, User, UserAuthProvider::Password,
         },
     },
     error::app_error::{
-        internal_error, AppError, FailedValidation,
-        ValidationIssue::{Invalid, Required, TooWeak},
+        internal_error, validation_error, AppError, FailedValidation,
+        ValidationIssue::{Invalid, Required, TooFrequent, TooWeak},
     },
     json::extractor::Extractor,
-    storage::error::ErrorCode,
+    storage::error::ErrorCode::{NotFoundError, RateLimitError},
     AppState,
 };
 
@@ -128,7 +128,7 @@ pub async fn email_verification(
             }));
         }
         Err(e) => {
-            if e.code == ErrorCode::NotFoundError {
+            if e.code == NotFoundError {
                 let validation_errors = vec![FailedValidation {
                     field: "token".to_string(),
                     issue: Invalid,
@@ -213,4 +213,51 @@ pub async fn log_out_user(
         Ok(_) => Ok(Extractor(LogOutUserResponse {})),
         Err(_) => return internal_error(),
     }
+}
+
+/// If the e-mail address corresponds to a user, it will send an e-mail with a
+/// link to reset the user's password
+pub async fn recover_password(
+    State(state): State<AppState>,
+    Extractor(input): Extractor<RecoverPasswordInput>,
+) -> Result<Extractor<RecoverPasswordResponse>, AppError> {
+    let clean_mail = input.email.trim().to_lowercase();
+    if !EmailAddress::is_valid(&clean_mail) {
+        return validation_error(vec![FailedValidation {
+            field: "email".to_string(),
+            issue: Invalid,
+        }]);
+    }
+
+    let id = format!("{}+{}", clean_mail, Password);
+    let user = match state.storage.user_by_id(&id).await {
+        Ok(u) => {
+            if u.is_none() {
+                return Ok(Extractor(RecoverPasswordResponse {}));
+            }
+
+            u.unwrap()
+        }
+        Err(_) => return internal_error(),
+    };
+
+    match state
+        .storage
+        .password_recovery(&user, state.settings.clone(), state.mail_helper.clone())
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            if e.code == RateLimitError {
+                let validation_errors = vec![FailedValidation {
+                    field: "request".to_string(),
+                    issue: TooFrequent,
+                }];
+                return validation_error(validation_errors);
+            }
+            return internal_error();
+        }
+    }
+
+    return Ok(Extractor(RecoverPasswordResponse {}));
 }

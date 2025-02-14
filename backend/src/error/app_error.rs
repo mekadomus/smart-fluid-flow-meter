@@ -6,9 +6,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum AppErrorCode {
     InvalidInput,
     InternalError,
@@ -55,7 +56,7 @@ impl From<Vec<FailedValidation>> for AppError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum ValidationIssue {
     Invalid,
     Required,
@@ -64,25 +65,25 @@ pub enum ValidationIssue {
     TooWeak,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FailedValidation {
     pub field: String,
     pub issue: ValidationIssue,
 }
 
 // Errors can contain extra data that can be used by clients
-#[derive(Serialize)]
-enum ErrorData {
+#[derive(Serialize, Deserialize)]
+pub enum ErrorData {
     #[serde(rename = "")]
     Empty,
     ValidationInfo(Vec<FailedValidation>),
 }
 
-#[derive(Serialize)]
-struct ErrorResponse {
-    code: String,
-    message: String,
-    data: ErrorData,
+#[derive(Serialize, Deserialize)]
+pub struct ErrorResponse {
+    pub code: AppErrorCode,
+    pub message: String,
+    pub data: ErrorData,
 }
 
 // Tell axum how `AppError` should be converted into a response.
@@ -120,7 +121,7 @@ impl IntoResponse for AppError {
         (
             response_status,
             Extractor(ErrorResponse {
-                code: error_code.to_string(),
+                code: error_code,
                 message: error_message,
                 data: error_data,
             }),
