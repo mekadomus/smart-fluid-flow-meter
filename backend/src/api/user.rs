@@ -17,7 +17,15 @@ pub struct LogInUserInput {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct RecoverPasswordInput {
+    pub email: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct LogOutUserResponse {}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct RecoverPasswordResponse {}
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR")] // Store as a string in the DB

@@ -14,7 +14,7 @@ use crate::{
         fluid_meter::{create_fluid_meter, fluid_meters},
         health::health_check,
         measurement::{get_measurements_for_meter, save_measurement},
-        user::{email_verification, log_in_user, log_out_user, me, sign_up_user},
+        user::{email_verification, log_in_user, log_out_user, me, recover_password, sign_up_user},
     },
     helper::{mail::MailHelper, user::UserHelper},
     middleware::auth::{auth, Authorizer},
@@ -95,18 +95,22 @@ pub async fn app(
     let cors = create_cors_layer(settings);
     Router::new()
         .route("/health", get(health_check))
+        // Users and sessions
         .route("/v1/email-verification", get(email_verification))
+        .route("/v1/log-in", post(log_in_user))
+        .route("/v1/log-out", post(log_out_user))
+        .route("/v1/me", get(me))
+        .route("/v1/sign-up", post(sign_up_user))
+        .route("/v1/recover-password", post(recover_password))
+        // Fluid meters
         .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/fluid-meter", post(create_fluid_meter))
         .route(
             "/v1/fluid-meter/{meter_id}/measurement",
             get(get_measurements_for_meter),
         )
-        .route("/v1/log-in", post(log_in_user))
-        .route("/v1/log-out", post(log_out_user))
-        .route("/v1/me", get(me))
+        // Measurements
         .route("/v1/measurement", post(save_measurement))
-        .route("/v1/sign-up", post(sign_up_user))
         .with_state(state.clone())
         .layer(from_fn_with_state(state, auth))
         .layer(cors)

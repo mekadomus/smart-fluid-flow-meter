@@ -1,15 +1,3 @@
-use smart_fluid_flow_meter_backend::{
-    api::user::{LogInUserInput, SignUpUserInput, UserAuthProvider::Password},
-    error::app_error::AppError,
-    helper::{
-        mail::{MailHelper, MockMailHelper},
-        user::{MockUserHelper, UserHelper},
-    },
-    middleware::auth::DefaultAuthorizer,
-    settings::settings::Settings,
-    storage::{postgres::PostgresStorage, UserStorage},
-};
-
 use axum::{
     body::Body,
     http,
@@ -25,6 +13,22 @@ use std::sync::Arc;
 use test_log::test;
 use tower::util::ServiceExt;
 
+use smart_fluid_flow_meter_backend::{
+    api::user::{
+        LogInUserInput, RecoverPasswordInput, SignUpUserInput, User, UserAuthProvider::Password,
+    },
+    error::app_error::{
+        AppError, AppErrorCode, ErrorData, ErrorResponse, ValidationIssue::TooFrequent,
+    },
+    helper::{
+        mail::{MailHelper, MockMailHelper},
+        user::{MockUserHelper, UserHelper},
+    },
+    middleware::auth::DefaultAuthorizer,
+    settings::settings::Settings,
+    storage::{postgres::PostgresStorage, UserStorage},
+};
+
 async fn create_app_basic() -> Router {
     let mail_helper = MockMailHelper::new();
     let user_helper = MockUserHelper::new();
@@ -34,6 +38,11 @@ async fn create_app_basic() -> Router {
 async fn create_app_user_helper(user_helper: Arc<dyn UserHelper>) -> Router {
     let mail_helper = MockMailHelper::new();
     return create_app(Arc::new(mail_helper), user_helper.clone()).await;
+}
+
+async fn create_app_mail_helper(mail_helper: Arc<dyn MailHelper>) -> Router {
+    let user_helper = MockUserHelper::new();
+    return create_app(mail_helper.clone(), Arc::new(user_helper)).await;
 }
 
 async fn create_app(mail_helper: Arc<dyn MailHelper>, user_helper: Arc<dyn UserHelper>) -> Router {
@@ -644,4 +653,131 @@ async fn me_no_auth_token() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[test(tokio::test)]
+async fn recover_password_failed_invalid_email() {
+    let app = create_app_basic().await;
+
+    let input = RecoverPasswordInput {
+        email: "my.useryou.know".to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/recover-password")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let resp: ErrorResponse = serde_json::from_slice(&body).unwrap();
+    assert_eq!(resp.code, AppErrorCode::ValidationError);
+    match resp.data {
+        ErrorData::ValidationInfo(v) => {
+            assert_eq!(v[0].field, "email");
+        }
+        _ => {
+            panic!("Invalid error response");
+        }
+    }
+}
+
+#[test(tokio::test)]
+async fn recover_password_success_if_user_not_found() {
+    let app = create_app_basic().await;
+
+    let input = RecoverPasswordInput {
+        email: "non.existing@us.er".to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/recover-password")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test(tokio::test)]
+async fn recover_password_success() {
+    let email = "existing@us.er";
+    let user = User {
+        id: format!("{}+password", email),
+        provider: Password,
+        name: "Carlos".to_string(),
+        email: email.to_string(),
+        password: Some("hello".to_string()),
+        email_verified_at: Some(Utc::now().naive_utc()),
+        recorded_at: Utc::now().naive_utc(),
+    };
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+    let _ = storage.insert_user(&user).await;
+
+    let mut mail_helper_mock = MockMailHelper::new();
+    mail_helper_mock
+        .expect_password_recovery()
+        .with(always(), always(), always())
+        .return_const(true);
+
+    let app = create_app_mail_helper(Arc::new(mail_helper_mock)).await;
+
+    let input = RecoverPasswordInput {
+        email: email.to_string(),
+    };
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/recover-password")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Don't allow another recovery attempt
+    let input = RecoverPasswordInput {
+        email: email.to_string(),
+    };
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/recover-password")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let resp: ErrorResponse = serde_json::from_slice(&body).unwrap();
+    assert_eq!(resp.code, AppErrorCode::ValidationError);
+    match resp.data {
+        ErrorData::ValidationInfo(v) => {
+            assert_eq!(v[0].issue, TooFrequent);
+        }
+        _ => {
+            panic!("Invalid error response");
+        }
+    }
 }
