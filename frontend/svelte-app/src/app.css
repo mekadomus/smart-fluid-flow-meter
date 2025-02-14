@@ -1,3 +1,13 @@
+@font-face {
+  font-family: Gyrochrome;
+  src: url(/fonts/gyrochrome/Gyrochrome-Regular.otf);
+}
+
+@font-face {
+  font-family: OpenSans;
+  src: url(/fonts/open-sans/OpenSans-Regular.ttf);
+}
+
 :root {
   --primary-color: #005f73;
   --primary-color-weak: #4a5568;
@@ -11,6 +21,12 @@ body {
   margin: 0;
   background: var(--secondary-color-weak);
   color: var(--primary-text);
+  font-family: OpenSans;
+}
+
+h1,
+h2 {
+  font-family: Gyrochrome;
 }
 
 .button,
