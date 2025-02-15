@@ -101,7 +101,7 @@ pub async fn app(
         .route("/v1/log-out", post(log_out_user))
         .route("/v1/me", get(me))
         .route("/v1/sign-up", post(sign_up_user))
-        .route("/v1/recover-password", post(recover_password))
+        .route("/v1/recover-password", get(recover_password))
         // Fluid meters
         .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/fluid-meter", post(create_fluid_meter))
