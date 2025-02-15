@@ -219,7 +219,7 @@ pub async fn log_out_user(
 /// link to reset the user's password
 pub async fn recover_password(
     State(state): State<AppState>,
-    Extractor(input): Extractor<RecoverPasswordInput>,
+    Query(input): Query<RecoverPasswordInput>,
 ) -> Result<Extractor<RecoverPasswordResponse>, AppError> {
     let clean_mail = input.email.trim().to_lowercase();
     if !EmailAddress::is_valid(&clean_mail) {

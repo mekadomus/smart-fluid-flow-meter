@@ -14,9 +14,7 @@ use test_log::test;
 use tower::util::ServiceExt;
 
 use smart_fluid_flow_meter_backend::{
-    api::user::{
-        LogInUserInput, RecoverPasswordInput, SignUpUserInput, User, UserAuthProvider::Password,
-    },
+    api::user::{LogInUserInput, SignUpUserInput, User, UserAuthProvider::Password},
     error::app_error::{
         AppError, AppErrorCode, ErrorData, ErrorResponse, ValidationIssue::TooFrequent,
     },
@@ -659,16 +657,13 @@ async fn me_no_auth_token() {
 async fn recover_password_failed_invalid_email() {
     let app = create_app_basic().await;
 
-    let input = RecoverPasswordInput {
-        email: "my.useryou.know".to_string(),
-    };
     let response = app
         .oneshot(
             Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/recover-password")
+                .method(http::Method::GET)
+                .uri("/v1/recover-password?email=my.user")
                 .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .body(Body::empty())
                 .unwrap(),
         )
         .await
@@ -692,16 +687,13 @@ async fn recover_password_failed_invalid_email() {
 async fn recover_password_success_if_user_not_found() {
     let app = create_app_basic().await;
 
-    let input = RecoverPasswordInput {
-        email: "non.existing@us.er".to_string(),
-    };
     let response = app
         .oneshot(
             Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/recover-password")
+                .method(http::Method::GET)
+                .uri("/v1/recover-password?email=non.existing@us.er")
                 .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .body(Body::empty())
                 .unwrap(),
         )
         .await
@@ -734,17 +726,14 @@ async fn recover_password_success() {
 
     let app = create_app_mail_helper(Arc::new(mail_helper_mock)).await;
 
-    let input = RecoverPasswordInput {
-        email: email.to_string(),
-    };
     let response = app
         .clone()
         .oneshot(
             Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/recover-password")
+                .method(http::Method::GET)
+                .uri(format!("/v1/recover-password?email={}", email))
                 .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .body(Body::empty())
                 .unwrap(),
         )
         .await
@@ -753,16 +742,13 @@ async fn recover_password_success() {
     assert_eq!(response.status(), StatusCode::OK);
 
     // Don't allow another recovery attempt
-    let input = RecoverPasswordInput {
-        email: email.to_string(),
-    };
     let response = app
         .oneshot(
             Request::builder()
-                .method(http::Method::POST)
-                .uri("/v1/recover-password")
+                .method(http::Method::GET)
+                .uri(format!("/v1/recover-password?email={}", email))
                 .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .body(Body::empty())
                 .unwrap(),
         )
         .await
