@@ -12,16 +12,17 @@ pub mod storage;
 use axum::{
     extract::FromRef,
     http::{header::HeaderValue, Method},
-    middleware::from_fn_with_state,
+    middleware::{from_fn, from_fn_with_state},
     routing::{get, post},
     Router,
 };
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::{self, TraceLayer},
 };
 use tracing::{error, info, Level};
+use tracing_subscriber::filter::LevelFilter;
 
 use crate::{
     handler::{
@@ -31,7 +32,10 @@ use crate::{
         user::{email_verification, log_in_user, log_out_user, me, recover_password, sign_up_user},
     },
     helper::{mail::MailHelper, user::UserHelper},
-    middleware::auth::{auth, Authorizer},
+    middleware::{
+        auth::{auth, Authorizer},
+        debug_request::debug_request,
+    },
     settings::settings::Settings,
     storage::Storage,
 };
@@ -78,6 +82,7 @@ pub async fn app(
     user_helper: Arc<dyn UserHelper>,
 ) -> Router {
     let _ = tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::from_str(&settings.log_level).unwrap())
         .with_file(true)
         .with_line_number(true)
         .with_thread_names(true)
@@ -112,6 +117,7 @@ pub async fn app(
         .route("/v1/measurement", post(save_measurement))
         .with_state(state.clone())
         .layer(from_fn_with_state(state, auth))
+        .layer(from_fn(debug_request))
         .layer(cors)
         .layer(
             TraceLayer::new_for_http()
