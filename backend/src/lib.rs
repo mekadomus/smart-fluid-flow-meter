@@ -9,6 +9,20 @@ pub mod middleware;
 pub mod settings;
 pub mod storage;
 
+use axum::{
+    extract::FromRef,
+    http::{header::HeaderValue, Method},
+    middleware::from_fn_with_state,
+    routing::{get, post},
+    Router,
+};
+use std::sync::Arc;
+use tower_http::{
+    cors::{AllowOrigin, CorsLayer},
+    trace::{self, TraceLayer},
+};
+use tracing::{error, info, Level};
+
 use crate::{
     handler::{
         fluid_meter::{create_fluid_meter, fluid_meters},
@@ -21,21 +35,6 @@ use crate::{
     settings::settings::Settings,
     storage::Storage,
 };
-
-use axum::{
-    extract::FromRef,
-    http::{header::HeaderValue, Method},
-    middleware::from_fn_with_state,
-    routing::get,
-    routing::post,
-    Router,
-};
-use std::sync::Arc;
-use tower_http::{
-    cors::{AllowOrigin, CorsLayer},
-    trace::{self, TraceLayer},
-};
-use tracing::{error, info, Level};
 
 #[derive(Clone, FromRef)]
 pub struct AppState {
