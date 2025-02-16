@@ -5,6 +5,7 @@ pub mod api;
 pub mod error;
 pub mod helper;
 pub mod http_client;
+pub mod logging;
 pub mod middleware;
 pub mod settings;
 pub mod storage;
@@ -16,13 +17,12 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::{self, TraceLayer},
 };
 use tracing::{error, info, Level};
-use tracing_subscriber::filter::LevelFilter;
 
 use crate::{
     handler::{
@@ -36,7 +36,7 @@ use crate::{
         auth::{auth, Authorizer},
         debug_request::debug_request,
     },
-    settings::settings::Settings,
+    settings::settings::{LoggingFormat::Json, Settings},
     storage::Storage,
 };
 
@@ -81,12 +81,16 @@ pub async fn app(
     storage: Arc<dyn Storage>,
     user_helper: Arc<dyn UserHelper>,
 ) -> Router {
-    let _ = tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::from_str(&settings.log_level).unwrap())
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(settings.logging.level.0)
         .with_file(true)
         .with_line_number(true)
-        .with_thread_names(true)
-        .try_init();
+        .with_thread_names(true);
+    if settings.logging.format == Json {
+        let _ = subscriber.json().try_init();
+    } else {
+        let _ = subscriber.try_init();
+    }
 
     let state = AppState {
         authorizer,
