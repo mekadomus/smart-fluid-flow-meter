@@ -10,4 +10,6 @@ mail:
   api_key: ""
   mailer_name: ""
   mailer_address: ""
-log_level: INFO
+logging:
+  level: INFO
+  format: Text

@@ -1,6 +1,14 @@
 use config::{Config, Environment, File, FileFormat};
 use serde::Deserialize;
 
+use crate::logging::level_filter_wrapper::LevelFilterWrapper;
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub enum LoggingFormat {
+    Json,
+    Text,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Service {
     // Comma separated list of domains that will be enabled for cors
@@ -31,12 +39,18 @@ pub struct Mail {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Logging {
+    pub level: LevelFilterWrapper,
+    pub format: LoggingFormat,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Settings {
     pub captcha: Captcha,
     pub database: Database,
     pub mail: Mail,
     pub service: Service,
-    pub log_level: String,
+    pub logging: Logging,
 }
 
 impl Settings {
