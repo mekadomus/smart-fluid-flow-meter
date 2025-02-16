@@ -36,6 +36,7 @@ pub struct Settings {
     pub database: Database,
     pub mail: Mail,
     pub service: Service,
+    pub log_level: String,
 }
 
 impl Settings {
