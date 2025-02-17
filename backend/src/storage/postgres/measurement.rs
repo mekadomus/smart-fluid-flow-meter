@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{Duration, NaiveDateTime, Utc};
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     api::measurement::Measurement,
@@ -15,6 +15,7 @@ use crate::{
 impl MeasurementStorage for PostgresStorage {
     // Measurements are rate-limitted by device to prevent devices from spamming us
     async fn save_measurement(&self, measurement: &Measurement) -> Result<Measurement, Error> {
+        debug!("Saving measurement {:?}", measurement);
         let mut tx = match self.pool.begin().await {
             Ok(t) => t,
             Err(e) => {
@@ -68,7 +69,13 @@ impl MeasurementStorage for PostgresStorage {
             }
         }
 
-        let _ = tx.commit().await;
+        match tx.commit().await {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Error committing transaction: {}", e);
+                return undefined();
+            }
+        }
         return Ok(measurement.clone());
     }
 
