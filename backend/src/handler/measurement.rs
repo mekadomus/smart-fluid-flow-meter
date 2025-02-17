@@ -23,7 +23,6 @@ use crate::{
 
 pub async fn save_measurement(
     State(state): State<AppState>,
-    user: Extension<User>,
     Extractor(input): Extractor<SaveMeasurementInput>,
 ) -> Result<Extractor<Measurement>, AppError> {
     let meter = state
@@ -32,7 +31,7 @@ pub async fn save_measurement(
         .await?;
     match meter {
         Some(m) => {
-            if m.owner_id == user.id && m.status == Active {
+            if m.status == Active {
                 let measurement = Measurement {
                     id: Uuid::new_v4().to_string(),
                     device_id: input.device_id,
