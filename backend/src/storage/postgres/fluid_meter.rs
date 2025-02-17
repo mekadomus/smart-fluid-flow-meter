@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     api::{
@@ -139,6 +139,7 @@ impl FluidMeterStorage for PostgresStorage {
     }
 
     async fn get_fluid_meter_by_id(&self, id: &str) -> Result<Option<FluidMeter>, Error> {
+        debug!("get_fluid_meter_by_id: {}", &id);
         match sqlx::query_as("SELECT * FROM fluid_meter WHERE id = $1")
             .bind(&id)
             .fetch_one(&self.pool)

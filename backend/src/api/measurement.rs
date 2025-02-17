@@ -7,7 +7,7 @@ pub struct SaveMeasurementInput {
     pub measurement: String,
 }
 
-#[derive(Clone, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Debug)]
 pub struct Measurement {
     pub id: String,
     pub device_id: String,
