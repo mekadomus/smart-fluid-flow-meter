@@ -32,7 +32,7 @@ pub const DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89001";
 pub const DEVICE_ID2: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89002";
 pub const INACTIVE_DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89003";
 
-async fn create_app() -> (Router, Arc<dyn Storage>) {
+async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
@@ -80,7 +80,9 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
         .expect_authorize()
         .with(always(), always())
         .returning(move |_, request| {
-            request.extensions_mut().insert(user.clone());
+            if with_session {
+                request.extensions_mut().insert(user.clone());
+            }
             Ok(())
         });
 
@@ -101,7 +103,7 @@ async fn create_app() -> (Router, Arc<dyn Storage>) {
 
 #[tokio::test]
 async fn save_measurement_invalid_json() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(false).await;
     let response = app
         .oneshot(
             Request::builder()
@@ -126,7 +128,7 @@ async fn save_measurement_invalid_json() {
 
 #[test(tokio::test)]
 async fn save_measurement_not_owner() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(false).await;
 
     let input = SaveMeasurementInput {
         device_id: "some-dev-id".to_string(),
@@ -149,7 +151,7 @@ async fn save_measurement_not_owner() {
 
 #[test(tokio::test)]
 async fn save_measurement_inactive() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(false).await;
 
     let input = SaveMeasurementInput {
         device_id: INACTIVE_DEVICE_ID.to_string(),
@@ -172,7 +174,7 @@ async fn save_measurement_inactive() {
 
 #[test(tokio::test)]
 async fn save_measurement_success() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(false).await;
 
     let input = SaveMeasurementInput {
         device_id: DEVICE_ID.to_string(),
@@ -212,7 +214,7 @@ async fn save_measurement_success() {
 
 #[tokio::test]
 async fn save_measurement_ignores_duplicate() {
-    let (app, storage) = create_app().await;
+    let (app, storage) = create_app(false).await;
 
     let input = SaveMeasurementInput {
         device_id: DEVICE_ID2.to_string(),
@@ -263,7 +265,7 @@ async fn save_measurement_ignores_duplicate() {
 
 #[tokio::test]
 async fn get_measurements_for_meter_not_owned() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(true).await;
 
     let response = app
         .clone()
@@ -283,7 +285,7 @@ async fn get_measurements_for_meter_not_owned() {
 
 #[tokio::test]
 async fn get_measurements_for_meter_invalid_meter() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(true).await;
 
     let response = app
         .clone()
@@ -303,7 +305,7 @@ async fn get_measurements_for_meter_invalid_meter() {
 
 #[tokio::test]
 async fn get_measurements_for_meter_success() {
-    let (app, _) = create_app().await;
+    let (app, _) = create_app(true).await;
 
     let response = app
         .clone()
