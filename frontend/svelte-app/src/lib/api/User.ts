@@ -14,6 +14,10 @@ export type LogInInput = {
   password: string;
 };
 
+export type RecoverPasswordInput = {
+  email: string;
+};
+
 enum UserAuthProvider {
   Password
 }
@@ -35,6 +39,13 @@ export async function signUpUser(input: SignUpUserInput): Promise<ErrorResponse 
 export async function logIn(input: LogInInput): Promise<ErrorResponse | User> {
   const res = await httpPost('/v1/log-in', input);
   return await res.json();
+}
+
+/**
+ */
+export async function recoverPassword(input: RecoverPasswordInput): Promise<number> {
+  const res = await httpGet(`/v1/recover-password?email=${input.email}`);
+  return res.status;
 }
 
 /**
