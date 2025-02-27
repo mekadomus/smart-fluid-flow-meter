@@ -2,8 +2,9 @@ use crate::{
     api::{
         email_verification::EmailVerificationInput,
         user::{
-            LogInUserInput, LogOutUserResponse, RecoverPasswordInput, RecoverPasswordResponse,
-            SessionToken, SignUpUserInput, User, UserAuthProvider::Password,
+            LogInUserInput, LogOutUserResponse, NewPasswordInput, NewPasswordResponse,
+            RecoverPasswordInput, RecoverPasswordResponse, SessionToken, SignUpUserInput, User,
+            UserAuthProvider::Password,
         },
     },
     error::app_error::{
@@ -260,4 +261,40 @@ pub async fn recover_password(
     }
 
     return Ok(Extractor(RecoverPasswordResponse {}));
+}
+
+/// Use a password recovery token to set a new password
+pub async fn new_password(
+    State(state): State<AppState>,
+    Extractor(input): Extractor<NewPasswordInput>,
+) -> Result<Extractor<NewPasswordResponse>, AppError> {
+    if state.user_helper.password_is_weak(&input.password) {
+        return validation_error(vec![FailedValidation {
+            field: "password".to_string(),
+            issue: TooWeak,
+        }]);
+    }
+
+    let password_hash = match state.user_helper.hash(&input.password) {
+        Ok(h) => h,
+        Err(e) => return Err(e),
+    };
+
+    let mut pr = input.clone();
+    pr.password = password_hash;
+
+    match state.storage.new_password(&pr).await {
+        Ok(_) => Ok(Extractor(NewPasswordResponse {})),
+        Err(e) => {
+            if e.code == NotFoundError {
+                let validation_errors = vec![FailedValidation {
+                    field: "request".to_string(),
+                    issue: Invalid,
+                }];
+                return validation_error(validation_errors);
+            }
+
+            return internal_error();
+        }
+    }
 }

@@ -14,7 +14,9 @@ use test_log::test;
 use tower::util::ServiceExt;
 
 use smart_fluid_flow_meter_backend::{
-    api::user::{LogInUserInput, SignUpUserInput, User, UserAuthProvider::Password},
+    api::user::{
+        LogInUserInput, NewPasswordInput, SignUpUserInput, User, UserAuthProvider::Password,
+    },
     error::app_error::{
         AppError, AppErrorCode, ErrorData, ErrorResponse, ValidationIssue::TooFrequent,
     },
@@ -36,11 +38,6 @@ async fn create_app_basic() -> Router {
 async fn create_app_user_helper(user_helper: Arc<dyn UserHelper>) -> Router {
     let mail_helper = MockMailHelper::new();
     return create_app(Arc::new(mail_helper), user_helper.clone()).await;
-}
-
-async fn create_app_mail_helper(mail_helper: Arc<dyn MailHelper>) -> Router {
-    let user_helper = MockUserHelper::new();
-    return create_app(mail_helper.clone(), Arc::new(user_helper)).await;
 }
 
 async fn create_app(mail_helper: Arc<dyn MailHelper>, user_helper: Arc<dyn UserHelper>) -> Router {
@@ -724,7 +721,19 @@ async fn recover_password_success() {
         .with(always(), always(), always())
         .return_const(true);
 
-    let app = create_app_mail_helper(Arc::new(mail_helper_mock)).await;
+    let mut user_helper_mock = MockUserHelper::new();
+    let new_password = "Chicharron15?";
+    let hashed_password = "imhash";
+    user_helper_mock
+        .expect_password_is_weak()
+        .with(eq(new_password))
+        .return_const(false);
+    user_helper_mock
+        .expect_hash()
+        .with(eq(new_password))
+        .returning(|_| Ok(hashed_password.to_string()));
+
+    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
 
     let response = app
         .clone()
@@ -743,6 +752,7 @@ async fn recover_password_success() {
 
     // Don't allow another recovery attempt
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
@@ -766,4 +776,33 @@ async fn recover_password_success() {
             panic!("Invalid error response");
         }
     }
+
+    // Set a new password using the password_recovery token
+    let pr = storage.password_recovery_by_user(&user.id).await.unwrap();
+    let input = NewPasswordInput {
+        token: pr.unwrap().token,
+        password: new_password.to_string(),
+    };
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri("/v1/new-password")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from(serde_json::to_string(&input).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    assert!(storage
+        .password_recovery_by_user(&user.id)
+        .await
+        .unwrap()
+        .is_none());
+    let new_user = storage.user_by_id(&user.id).await.unwrap().unwrap();
+    assert_eq!(hashed_password, new_user.password.unwrap())
 }

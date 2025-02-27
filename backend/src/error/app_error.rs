@@ -27,6 +27,7 @@ impl fmt::Display for AppErrorCode {
 }
 
 // The kinds of errors we can hit in our application.
+#[derive(Debug)]
 pub enum AppError {
     // Generic server error
     ServerError,
@@ -65,7 +66,7 @@ pub enum ValidationIssue {
     TooWeak,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FailedValidation {
     pub field: String,
     pub issue: ValidationIssue,

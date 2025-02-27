@@ -6,8 +6,7 @@ use crate::{
         email_verification::EmailVerification,
         fluid_meter::{FluidMeter, FluidMetersInput},
         measurement::Measurement,
-        user::SessionToken,
-        user::User,
+        user::{NewPasswordInput, PasswordRecovery, SessionToken, User},
     },
     helper::mail::MailHelper,
     settings::settings::Settings,
@@ -51,12 +50,17 @@ pub trait UserStorage {
     async fn insert_user(&self, user: &User) -> Result<User, Error>;
     async fn log_in(&self, id: &str) -> Result<SessionToken, Error>;
     async fn log_out(&self, token: &str) -> Result<(), Error>;
+    async fn new_password(&self, input: &NewPasswordInput) -> Result<(), Error>;
     async fn password_recovery(
         &self,
         user: &User,
         settings: Arc<Settings>,
         mail_helper: Arc<dyn MailHelper>,
     ) -> Result<(), Error>;
+    async fn password_recovery_by_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<PasswordRecovery>, Error>;
     async fn sign_up_user(
         &self,
         user: User,
