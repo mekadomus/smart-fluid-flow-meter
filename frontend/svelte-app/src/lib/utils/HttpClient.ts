@@ -42,10 +42,14 @@ export async function httpPostBrowser(path: string, data: object) {
   if (r.ok) {
     return r.json();
   } else {
-    return {
-      code: 'InternalError',
-      message: 'We encountered an error'
-    };
+    try {
+      return r.json();
+    } catch {
+      return {
+        code: 'InternalError',
+        message: 'We encountered an error'
+      };
+    }
   }
 }
 

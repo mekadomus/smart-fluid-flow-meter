@@ -2,6 +2,11 @@ import type { ErrorResponse } from './Error';
 import { httpGet, httpPost } from '../utils/Http';
 import { httpPostBrowser } from '../utils/HttpClient';
 
+export type NewPasswordInput = {
+  token: string;
+  password: string;
+};
+
 export type SignUpUserInput = {
   captcha: string;
   email: string;
@@ -72,6 +77,24 @@ export async function logOut(): Promise<number> {
   const res = await httpPostBrowser(`/v1/log-out`, {});
   if ('code' in res) {
     return 500;
+  }
+
+  return 200;
+}
+
+/**
+ * Updates a user's password
+ * Returns the status code of the response
+ */
+export async function setNewPassword(input: NewPasswordInput): Promise<number> {
+  const res = await httpPostBrowser(`/v1/new-password`, input);
+  console.log(res);
+  if ('code' in res) {
+    if (res.code == 'InternalError') {
+      return 500;
+    } else {
+      return 400;
+    }
   }
 
   return 200;
