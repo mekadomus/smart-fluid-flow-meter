@@ -22,6 +22,15 @@ pub struct RecoverPasswordInput {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct NewPasswordInput {
+    pub token: String,
+    pub password: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct NewPasswordResponse {}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct LogOutUserResponse {}
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -59,4 +68,12 @@ pub struct SessionToken {
     pub user_id: String,
     pub token: String,
     pub expires_at: NaiveDateTime,
+}
+
+#[derive(Clone, Deserialize, Serialize, sqlx::FromRow)]
+pub struct PasswordRecovery {
+    pub token: String,
+    pub account_id: String,
+    pub expires_at: NaiveDateTime,
+    pub recorded_at: NaiveDateTime,
 }

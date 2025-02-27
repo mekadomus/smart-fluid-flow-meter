@@ -20,8 +20,9 @@ static PUBLIC_PATHS: Lazy<HashMap<&str, HashSet<Method>>> = Lazy::new(|| {
     m.insert("/v1/email-verification", HashSet::from([Method::GET]));
     m.insert("/v1/log-in", HashSet::from([Method::POST]));
     m.insert("/v1/measurement", HashSet::from([Method::POST]));
-    m.insert("/v1/sign-up", HashSet::from([Method::POST]));
+    m.insert("/v1/new-password", HashSet::from([Method::POST]));
     m.insert("/v1/recover-password", HashSet::from([Method::GET]));
+    m.insert("/v1/sign-up", HashSet::from([Method::POST]));
     return m;
 });
 

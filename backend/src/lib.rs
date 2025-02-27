@@ -29,7 +29,10 @@ use crate::{
         fluid_meter::{create_fluid_meter, fluid_meters},
         health::health_check,
         measurement::{get_measurements_for_meter, save_measurement},
-        user::{email_verification, log_in_user, log_out_user, me, recover_password, sign_up_user},
+        user::{
+            email_verification, log_in_user, log_out_user, me, new_password, recover_password,
+            sign_up_user,
+        },
     },
     helper::{mail::MailHelper, user::UserHelper},
     middleware::{
@@ -108,8 +111,9 @@ pub async fn app(
         .route("/v1/log-in", post(log_in_user))
         .route("/v1/log-out", post(log_out_user))
         .route("/v1/me", get(me))
-        .route("/v1/sign-up", post(sign_up_user))
+        .route("/v1/new-password", post(new_password))
         .route("/v1/recover-password", get(recover_password))
+        .route("/v1/sign-up", post(sign_up_user))
         // Fluid meters
         .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/fluid-meter", post(create_fluid_meter))

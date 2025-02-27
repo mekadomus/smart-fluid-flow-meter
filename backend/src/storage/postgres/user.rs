@@ -6,7 +6,7 @@ use tracing::error;
 use crate::{
     api::{
         email_verification::EmailVerification,
-        user::{SessionToken, User},
+        user::{NewPasswordInput, PasswordRecovery, SessionToken, User},
     },
     helper::{
         mail::MailHelper,
@@ -352,6 +352,93 @@ impl UserStorage for PostgresStorage {
             }
             Err(e) => {
                 error!("Error saving password_recovery: {}", e);
+                return undefined();
+            }
+        };
+
+        let _ = tx.commit().await;
+        return Ok(());
+    }
+
+    async fn password_recovery_by_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<PasswordRecovery>, Error> {
+        match sqlx::query_as("SELECT * FROM password_recovery WHERE account_id = $1")
+            .bind(&user_id)
+            .fetch_one(&self.pool)
+            .await
+        {
+            Ok(u) => Ok(Some(u)),
+            Err(e) => {
+                match e {
+                    sqlx::Error::RowNotFound => {
+                        error!("No password recovery for user {}", &user_id);
+                        return Ok(None);
+                    }
+                    _ => {}
+                }
+
+                error!("Failed to query for password_recovery {}", e);
+                return undefined();
+            }
+        }
+    }
+
+    async fn new_password(&self, input: &NewPasswordInput) -> Result<(), Error> {
+        let mut tx = match self.pool.begin().await {
+            Ok(t) => t,
+            Err(e) => {
+                error!("Error creating transaction. {}", e);
+                return undefined();
+            }
+        };
+
+        let pr: PasswordRecovery = match sqlx::query_as(
+            "SELECT * FROM password_recovery WHERE token = $1 AND expires_at > NOW()",
+        )
+        .bind(&input.token)
+        .fetch_one(&mut *tx)
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                match e {
+                    sqlx::Error::RowNotFound => {
+                        error!("No password recovery matches token {}", &input.token);
+                        return not_found();
+                    }
+                    _ => {}
+                }
+
+                error!("Failed to query for password_recovery {}", e);
+                return undefined();
+            }
+        };
+
+        match sqlx::query("UPDATE account SET password = $1 WHERE id = $2")
+            .bind(&input.password)
+            .bind(&pr.account_id)
+            .execute(&mut *tx)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                let _ = tx.rollback().await;
+                error!("Failed to update user. {}", e);
+                return undefined();
+            }
+        };
+
+        match sqlx::query("DELETE FROM password_recovery WHERE account_id = $1")
+            .bind(&pr.account_id)
+            .execute(&mut *tx)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                let _ = tx.rollback().await;
+                error!("Failed to update user. {}", e);
                 return undefined();
             }
         };
