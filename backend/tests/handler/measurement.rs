@@ -5,13 +5,15 @@ use smart_fluid_flow_meter_backend::{
             FluidMeter,
             FluidMeterStatus::{Active, Inactive},
         },
-        measurement::SaveMeasurementInput,
+        measurement::{Measurement, SaveMeasurementInput},
         user::{User, UserAuthProvider::Password},
     },
     helper::{mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
-    storage::{postgres::PostgresStorage, FluidMeterStorage, Storage, UserStorage},
+    storage::{
+        postgres::PostgresStorage, FluidMeterStorage, MeasurementStorage, Storage, UserStorage,
+    },
 };
 
 use axum::{
@@ -20,7 +22,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use chrono::{NaiveDateTime, Utc};
+use chrono::{Duration, NaiveDateTime, Utc};
 use http_body_util::BodyExt;
 use mockall::predicate::always;
 use serde_json::{json, Value};
@@ -31,6 +33,7 @@ use tower::util::ServiceExt;
 pub const DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89001";
 pub const DEVICE_ID2: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89002";
 pub const INACTIVE_DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89003";
+pub const MEASUREMENT_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89004";
 
 async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
@@ -70,10 +73,17 @@ async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
         status: Inactive,
         recorded_at: Utc::now().naive_utc(),
     };
+    let measurement = Measurement {
+        id: MEASUREMENT_ID.to_string(),
+        device_id: DEVICE_ID.to_string(),
+        measurement: "10.5".to_string(),
+        recorded_at: Utc::now().naive_utc() - Duration::minutes(30),
+    };
     let _ = storage.insert_user(&user).await;
     let _ = storage.insert_fluid_meter(&fm).await;
     let _ = storage.insert_fluid_meter(&fm2).await;
     let _ = storage.insert_fluid_meter(&fm3).await;
+    let _ = storage.save_measurement(&measurement).await;
 
     let mut authorizer = MockAuthorizer::new();
     authorizer
@@ -251,7 +261,11 @@ async fn save_measurement_ignores_duplicate() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
     match storage
-        .get_measurements(DEVICE_ID2.to_string(), Utc::now().naive_utc(), 10)
+        .get_measurements(
+            DEVICE_ID2.to_string(),
+            Utc::now().naive_utc() - Duration::minutes(60),
+            10,
+        )
         .await
     {
         Ok(f) => {
@@ -326,5 +340,5 @@ async fn get_measurements_for_meter_success() {
     let resp: Series = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(resp.granularity, Hour);
-    assert_eq!(resp.items.len(), 0);
+    assert_eq!(resp.items.len(), 1);
 }

@@ -95,7 +95,7 @@ impl MeasurementStorage for PostgresStorage {
             FROM measurement
             WHERE
                 device_id = $1 AND
-                recorded_at <= $2
+                recorded_at >= $2
             LIMIT $3
         "#,
         )
