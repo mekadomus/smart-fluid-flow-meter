@@ -96,6 +96,8 @@ impl MeasurementStorage for PostgresStorage {
             WHERE
                 device_id = $1 AND
                 recorded_at >= $2
+            ORDER BY
+                recorded_at DESC
             LIMIT $3
         "#,
         )

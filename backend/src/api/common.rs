@@ -31,7 +31,7 @@ pub enum SeriesGranularity {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct SeriesItem {
-    pub preriod_start: NaiveDateTime,
+    pub period_start: NaiveDateTime,
     // We use string so we have flexibility about the type
     pub value: String,
 }
