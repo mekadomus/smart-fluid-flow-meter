@@ -79,7 +79,7 @@ fn create_series(measurements: &Vec<Measurement>, start_time: &NaiveDateTime) ->
 
         if total != 0.0 {
             items.push(SeriesItem {
-                preriod_start: current_start,
+                period_start: current_start,
                 value: total.to_string(),
             });
         }
@@ -191,17 +191,17 @@ mod tests {
         let mut items = vec![];
         let mut hour = now - Duration::hours(1);
         items.push(SeriesItem {
-            preriod_start: hour,
+            period_start: hour,
             value: "6.5".to_string(),
         });
         hour = hour - Duration::hours(1);
         items.push(SeriesItem {
-            preriod_start: hour,
+            period_start: hour,
             value: "25.3".to_string(),
         });
         hour = hour - Duration::hours(1);
         items.push(SeriesItem {
-            preriod_start: hour,
+            period_start: hour,
             value: "3".to_string(),
         });
         let expected = Series {
