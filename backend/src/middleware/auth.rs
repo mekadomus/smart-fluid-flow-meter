@@ -17,6 +17,7 @@ use tracing::error;
 static PUBLIC_PATHS: Lazy<HashMap<&str, HashSet<Method>>> = Lazy::new(|| {
     let mut m = HashMap::new();
     m.insert("/health", HashSet::from([Method::GET, Method::HEAD]));
+    m.insert("/v1/alert", HashSet::from([Method::POST]));
     m.insert("/v1/email-verification", HashSet::from([Method::GET]));
     m.insert("/v1/log-in", HashSet::from([Method::POST]));
     m.insert("/v1/measurement", HashSet::from([Method::POST]));

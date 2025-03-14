@@ -138,3 +138,8 @@ pub fn internal_error<T>() -> Result<T, AppError> {
 pub fn validation_error<T>(validation_errors: Vec<FailedValidation>) -> Result<T, AppError> {
     return Err(AppError::ValidationError(validation_errors));
 }
+
+// Generic bad request response
+pub fn bad_request<T>() -> Result<T, AppError> {
+    return Err(AppError::ValidationError(vec![]));
+}

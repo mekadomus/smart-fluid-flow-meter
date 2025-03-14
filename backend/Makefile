@@ -57,10 +57,11 @@ build: image
 		-v $(PWD)/build/registry:/usr/local/cargo/registry \
 		-v $(PWD)/build/target:/backend/target \
 		-v $(PWD)/src:/backend/src \
+		-v $(PWD)/tests:/backend/tests \
 		-w /backend/ \
 		--name smart-fluid-flow-meter-backend-dev \
 		smart-fluid-flow-meter-backend-image \
-		cargo build
+		sh -c "cargo build && cargo test --no-run"
 .PHONY: build
 
 start:

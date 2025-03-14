@@ -17,7 +17,7 @@ use smart_fluid_flow_meter_backend::{
         fluid_meter::{CreateFluidMeterInput, FluidMeter, FluidMeterStatus},
         user::{User, UserAuthProvider::Password},
     },
-    helper::{mail::MockMailHelper, user::MockUserHelper},
+    helper::{alert::MockAlertHelper, mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
     storage::{postgres::PostgresStorage, Storage, UserStorage},
@@ -64,6 +64,7 @@ async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
 
     (
         smart_fluid_flow_meter_backend::app(
+            Arc::new(MockAlertHelper::new()),
             Arc::new(authorizer),
             mail_helper,
             settings,

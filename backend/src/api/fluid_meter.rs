@@ -33,7 +33,7 @@ pub enum FluidMetersSort {
     Name,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, sqlx::FromRow)]
 pub struct FluidMeter {
     pub id: String,
     pub owner_id: String,
