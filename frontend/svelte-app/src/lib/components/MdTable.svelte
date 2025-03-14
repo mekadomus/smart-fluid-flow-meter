@@ -16,7 +16,7 @@
     {#each props.items as item}
       <tr>
         {#each Object.values(item) as v}
-          <td>{v}</td>
+          <td>{@html v}</td> <!-- eslint-disable-line svelte/no-at-html-tags -->
         {/each}
       </tr>
     {/each}

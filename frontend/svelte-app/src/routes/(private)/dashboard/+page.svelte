@@ -22,10 +22,19 @@
 
   let props: Props = $props();
 
+  function prepareMetersForTable(meters: FluidMeter[]) {
+    return meters.map((v) => {
+      return [
+        `<a href="/meter/${v.id}">${v.name}</a>`,
+        v.id,
+        v.status,
+        new Date(v.recorded_at).toLocaleString()
+      ];
+    });
+  }
+
   const meters = props.data.meters;
-  let i = meters.items.map((v) => {
-    return [v.name, v.status, new Date(v.recorded_at).toLocaleString()];
-  });
+  let i = prepareMetersForTable(meters.items);
   let items = $state(i);
   let error = $state(props.data.error);
   let hasMore: (() => void) | null = $state(null);
@@ -33,10 +42,7 @@
   async function loadMore(after: string) {
     let r = await getFluidMetersBrowser(after);
     if ('items' in r) {
-      let i = r.items.map((v) => {
-        return [v.name, v.status, new Date(v.recorded_at).toLocaleString()];
-      });
-      items = i;
+      items = prepareMetersForTable(r.items);
 
       console.log(r.pagination);
       if (r.pagination.has_more) {
@@ -72,7 +78,7 @@
 {#if items}
   {#if items.length}
     <div class="container">
-      <MdTable {items} headers={['Name', 'Status', 'Creation date']} moreCallback={hasMore} />
+      <MdTable {items} headers={['Name', 'ID', 'Status', 'Creation date']} moreCallback={hasMore} />
     </div>
   {:else}
     <div class="warning-msg msg">You currently don't own any meters</div>
