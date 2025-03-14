@@ -36,6 +36,11 @@ impl FluidMeterStorage for PostgresStorage {
             None => "ASC",
         };
 
+        let status_filter = match &options.status {
+            Some(s) => format!("AND status = '{}'", s),
+            None => "".to_string(),
+        };
+
         match options.page_cursor.clone() {
             Some(cursor) => {
                 let where_stmt = if sort_direction == "ASC" {
@@ -55,9 +60,10 @@ impl FluidMeterStorage for PostgresStorage {
                         FROM fluid_meter
                         {}
                         {}
+                        {}
                         LIMIT $3
                     "#,
-                    where_stmt, order_stmt,
+                    where_stmt, status_filter, order_stmt,
                 );
 
                 match sqlx::query_as(&query)
@@ -91,9 +97,10 @@ impl FluidMeterStorage for PostgresStorage {
                         FROM fluid_meter
                         WHERE owner_id = $1
                         {}
+                        {}
                         LIMIT $2
                     "#,
-                    order_stmt,
+                    status_filter, order_stmt,
                 );
 
                 match sqlx::query_as(&query)

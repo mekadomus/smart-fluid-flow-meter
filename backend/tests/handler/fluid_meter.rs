@@ -115,6 +115,7 @@ async fn get_fluid_meters_filters() {
     let mut fluid_meter_3 = fluid_meter_1.clone();
     fluid_meter_3.id = (user_id + 2).to_string();
     fluid_meter_3.name = "garage".to_string();
+    fluid_meter_3.status = FluidMeterStatus::Inactive;
     assert!(storage.insert_fluid_meter(&fluid_meter_1).await.is_ok());
     assert!(storage.insert_fluid_meter(&fluid_meter_2).await.is_ok());
     assert!(storage.insert_fluid_meter(&fluid_meter_3).await.is_ok());
@@ -139,6 +140,28 @@ async fn get_fluid_meters_filters() {
     assert_eq!(resp.items.len(), 3);
     assert_eq!(resp.items[0].id, fluid_meter_1.id);
     assert_eq!(resp.items[2].id, fluid_meter_3.id);
+    assert!(!resp.pagination.has_more);
+    assert!(!resp.pagination.has_less);
+
+    // Only active meters
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/v1/fluid-meter?status=Active")
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let resp: PaginatedResponse<FluidMeter> = serde_json::from_slice(&body).unwrap();
+    assert_eq!(resp.items.len(), 2);
     assert!(!resp.pagination.has_more);
     assert!(!resp.pagination.has_less);
 

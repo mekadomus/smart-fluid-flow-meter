@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::api::common::SortDirection;
 
@@ -14,6 +15,16 @@ pub enum FluidMeterStatus {
     // Not shown to the user
     #[sqlx(rename = "deleted")]
     Deleted,
+}
+
+impl fmt::Display for FluidMeterStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FluidMeterStatus::Active => write!(f, "active"),
+            FluidMeterStatus::Inactive => write!(f, "inactive"),
+            FluidMeterStatus::Deleted => write!(f, "deleted"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -35,6 +46,7 @@ pub struct FluidMeter {
 pub struct FluidMetersInput {
     pub sort: Option<FluidMetersSort>,
     pub sort_direction: Option<SortDirection>,
+    pub status: Option<FluidMeterStatus>,
     // Will retrieve only items after this one
     pub page_cursor: Option<String>,
     pub page_size: Option<u8>,
