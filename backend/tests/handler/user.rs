@@ -2,7 +2,6 @@ use axum::{
     body::Body,
     http,
     http::{Method, Request, StatusCode},
-    Router,
 };
 use chrono::{Duration, NaiveDateTime, Utc};
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -20,42 +19,11 @@ use smart_fluid_flow_meter_backend::{
     error::app_error::{
         AppError, AppErrorCode, ErrorData, ErrorResponse, ValidationIssue::TooFrequent,
     },
-    helper::{
-        mail::{MailHelper, MockMailHelper},
-        user::{MockUserHelper, UserHelper},
-    },
-    middleware::auth::DefaultAuthorizer,
-    settings::settings::Settings,
+    helper::{mail::MockMailHelper, user::MockUserHelper},
     storage::{postgres::PostgresStorage, UserStorage},
 };
 
-async fn create_app_basic() -> Router {
-    let mail_helper = MockMailHelper::new();
-    let user_helper = MockUserHelper::new();
-    return create_app(Arc::new(mail_helper), Arc::new(user_helper)).await;
-}
-
-async fn create_app_user_helper(user_helper: Arc<dyn UserHelper>) -> Router {
-    let mail_helper = MockMailHelper::new();
-    return create_app(Arc::new(mail_helper), user_helper.clone()).await;
-}
-
-async fn create_app(mail_helper: Arc<dyn MailHelper>, user_helper: Arc<dyn UserHelper>) -> Router {
-    let settings = Arc::new(Settings::from_file(
-        "/smart-fluid-flow-meter/tests/config/default.yaml",
-    ));
-    let storage =
-        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
-    let authorizer = Arc::new(DefaultAuthorizer {});
-    return smart_fluid_flow_meter_backend::app(
-        authorizer,
-        mail_helper,
-        settings,
-        storage.clone(),
-        user_helper,
-    )
-    .await;
-}
+use crate::helper::app::{create_app, create_app_basic, create_app_user_helper};
 
 #[test(tokio::test)]
 async fn sign_up_user_weak_password() {

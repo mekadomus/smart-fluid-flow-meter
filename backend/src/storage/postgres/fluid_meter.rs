@@ -3,7 +3,9 @@ use tracing::{debug, error};
 
 use crate::{
     api::{
-        common::{SortDirection, DEFAULT_PAGE_SIZE},
+        common::{
+            PaginatedRequest, PaginatedResponse, Pagination, SortDirection, DEFAULT_PAGE_SIZE,
+        },
         fluid_meter::{FluidMeter, FluidMetersInput, FluidMetersSort},
     },
     storage::{
@@ -15,6 +17,84 @@ use crate::{
 
 #[async_trait]
 impl FluidMeterStorage for PostgresStorage {
+    async fn get_active_fluid_meters(
+        &self,
+        options: &PaginatedRequest,
+    ) -> Result<PaginatedResponse<FluidMeter>, Error> {
+        let mut meters = match &options.page_cursor {
+            Some(pc) => {
+                let query = r#"
+                        SELECT
+                            id,
+                            owner_id,
+                            name,
+                            status,
+                            recorded_at
+                        FROM fluid_meter
+                        WHERE status = 'active' AND id > $1
+                        ORDER BY id
+                        LIMIT $2
+                    "#;
+
+                match sqlx::query_as(&query)
+                    .bind(&pc)
+                    .bind((options.page_size + 1) as i32)
+                    .fetch_all(&self.pool)
+                    .await
+                {
+                    Ok(found) => found,
+                    Err(err) => {
+                        error!("Error getting fluid_meters: {}", err);
+                        return Err(Error {
+                            code: ErrorCode::UndefinedError,
+                        });
+                    }
+                }
+            }
+            None => {
+                let query = r#"
+                        SELECT
+                            id,
+                            owner_id,
+                            name,
+                            status,
+                            recorded_at
+                        FROM fluid_meter
+                        WHERE status = 'active'
+                        ORDER BY id
+                        LIMIT $1
+                    "#;
+
+                match sqlx::query_as(&query)
+                    .bind((options.page_size + 1) as i32)
+                    .fetch_all(&self.pool)
+                    .await
+                {
+                    Ok(found) => found,
+                    Err(err) => {
+                        error!("Error getting fluid_meters: {}", err);
+                        return Err(Error {
+                            code: ErrorCode::UndefinedError,
+                        });
+                    }
+                }
+            }
+        };
+
+        let mut has_more = false;
+        if (meters.len() as u8) > options.page_size {
+            has_more = true;
+            meters.pop();
+        }
+        return Ok(PaginatedResponse {
+            items: meters,
+            pagination: Pagination {
+                has_more,
+                has_less: options.page_cursor.is_some(),
+            },
+        });
+    }
+
     async fn get_fluid_meters(
         &self,
         user: &str,

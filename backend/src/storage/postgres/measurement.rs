@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::{Duration, NaiveDateTime};
 use tracing::{debug, error};
 
 use crate::{
@@ -48,9 +48,14 @@ impl MeasurementStorage for PostgresStorage {
         };
 
         if last.is_some()
-            && last.unwrap().recorded_at > Utc::now().naive_utc() - Duration::minutes(10)
+            && last.clone().unwrap().recorded_at > measurement.recorded_at - Duration::minutes(10)
         {
-            error!("Rate limiting device: {}", measurement.device_id);
+            error!(
+                "Rate limiting device: {}. Last recorded_at: {}. New recorded_at: {}",
+                measurement.device_id,
+                last.unwrap().recorded_at,
+                measurement.recorded_at
+            );
             return rate_limit();
         }
 

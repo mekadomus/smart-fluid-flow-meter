@@ -11,6 +11,14 @@ pub enum SortDirection {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PaginatedRequest {
+    // Max number of itmes to return
+    pub page_size: u8,
+    // Only return items after this one (This one is not included)
+    pub page_cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Pagination {
     pub has_more: bool,
     pub has_less: bool,

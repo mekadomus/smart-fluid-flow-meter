@@ -8,7 +8,7 @@ use smart_fluid_flow_meter_backend::{
         measurement::{Measurement, SaveMeasurementInput},
         user::{User, UserAuthProvider::Password},
     },
-    helper::{mail::MockMailHelper, user::MockUserHelper},
+    helper::{alert::MockAlertHelper, mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
     storage::{
@@ -100,6 +100,7 @@ async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
     let mail_helper = Arc::new(MockMailHelper::new());
     return (
         smart_fluid_flow_meter_backend::app(
+            Arc::new(MockAlertHelper::new()),
             Arc::new(authorizer),
             mail_helper,
             settings,

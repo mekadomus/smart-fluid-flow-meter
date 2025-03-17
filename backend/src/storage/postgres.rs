@@ -1,5 +1,6 @@
 pub mod fluid_meter;
 pub mod measurement;
+pub mod metadata;
 pub mod user;
 
 use sqlx::{

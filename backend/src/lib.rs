@@ -26,6 +26,7 @@ use tracing::{error, info, Level};
 
 use crate::{
     handler::{
+        alert::trigger_alerts,
         fluid_meter::{create_fluid_meter, fluid_meters},
         health::health_check,
         measurement::{get_measurements_for_meter, save_measurement},
@@ -34,7 +35,7 @@ use crate::{
             sign_up_user,
         },
     },
-    helper::{mail::MailHelper, user::UserHelper},
+    helper::{alert::AlertHelper, mail::MailHelper, user::UserHelper},
     middleware::{
         auth::{auth, Authorizer},
         debug_request::debug_request,
@@ -45,6 +46,7 @@ use crate::{
 
 #[derive(Clone, FromRef)]
 pub struct AppState {
+    alert_helper: Arc<dyn AlertHelper>,
     authorizer: Arc<dyn Authorizer>,
     mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
@@ -78,6 +80,7 @@ fn create_cors_layer(settings: Arc<Settings>) -> CorsLayer {
 }
 
 pub async fn app(
+    alert_helper: Arc<dyn AlertHelper>,
     authorizer: Arc<dyn Authorizer>,
     mail_helper: Arc<dyn MailHelper>,
     settings: Arc<Settings>,
@@ -96,6 +99,7 @@ pub async fn app(
     }
 
     let state = AppState {
+        alert_helper,
         authorizer,
         mail_helper,
         settings: settings.clone(),
@@ -123,6 +127,8 @@ pub async fn app(
         )
         // Measurements
         .route("/v1/measurement", post(save_measurement))
+        // Alerts
+        .route("/v1/alert", post(trigger_alerts))
         .with_state(state.clone())
         .layer(from_fn_with_state(state, auth))
         .layer(from_fn(debug_request))

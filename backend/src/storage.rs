@@ -3,9 +3,11 @@ pub mod postgres;
 
 use crate::{
     api::{
+        common::{PaginatedRequest, PaginatedResponse},
         email_verification::EmailVerification,
         fluid_meter::{FluidMeter, FluidMetersInput},
         measurement::Measurement,
+        metadata::Metadata,
         user::{NewPasswordInput, PasswordRecovery, SessionToken, User},
     },
     helper::mail::MailHelper,
@@ -19,6 +21,11 @@ use std::sync::Arc;
 
 #[async_trait]
 pub trait FluidMeterStorage {
+    /// Return a paginated list of active fluid meters for all accounts
+    async fn get_active_fluid_meters(
+        &self,
+        options: &PaginatedRequest,
+    ) -> Result<PaginatedResponse<FluidMeter>, Error>;
     async fn get_fluid_meters(
         &self,
         user: &str,
@@ -36,12 +43,20 @@ pub trait FluidMeterStorage {
 #[async_trait]
 pub trait MeasurementStorage {
     async fn save_measurement(&self, measurement: &Measurement) -> Result<Measurement, Error>;
+    /// Returns list of measurements for a given device. Results are sorted by
+    /// creation date, with the newest coming first
     async fn get_measurements(
         &self,
         device_id: String,
         since: NaiveDateTime,
         num_records: u32,
     ) -> Result<Vec<Measurement>, Error>;
+}
+
+#[async_trait]
+pub trait MetadataStorage {
+    async fn get_metadata(&self, key: &str) -> Result<Option<Metadata>, Error>;
+    async fn save_metadata(&self, key: &str, value: &str) -> Result<Metadata, Error>;
 }
 
 #[async_trait]
@@ -73,4 +88,7 @@ pub trait UserStorage {
 }
 
 #[async_trait]
-pub trait Storage: Send + Sync + FluidMeterStorage + MeasurementStorage + UserStorage {}
+pub trait Storage:
+    Send + Sync + FluidMeterStorage + MeasurementStorage + MetadataStorage + UserStorage
+{
+}
