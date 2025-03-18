@@ -9,10 +9,11 @@ use axum::extract::State;
 use chrono::{Duration, NaiveDateTime, Utc};
 use tracing::error;
 
-pub const LAST_ALERTS_RUN_KEY: &'static str = "last-alerts-run";
 pub const ALERTS_MAX_FREQUENCY_MINS: &'static i64 = &20;
-pub const METERS_PAGE_SIZE: &'static u8 = &100;
+pub const DT_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S%.f";
+pub const LAST_ALERTS_RUN_KEY: &'static str = "last-alerts-run";
 pub const MEASUREMENTS_PAGE_SIZE: &'static u8 = &10;
+pub const METERS_PAGE_SIZE: &'static u8 = &100;
 
 pub async fn trigger_alerts(State(state): State<AppState>) -> Result<Extractor<Health>, AppError> {
     let last_run = match state.storage.get_metadata(&LAST_ALERTS_RUN_KEY).await {
@@ -24,12 +25,7 @@ pub async fn trigger_alerts(State(state): State<AppState>) -> Result<Extractor<H
     };
 
     if last_run.is_some()
-        && last_run
-            .clone()
-            .unwrap()
-            .value
-            .parse::<NaiveDateTime>()
-            .unwrap()
+        && NaiveDateTime::parse_from_str(&last_run.clone().unwrap().value, DT_FORMAT).unwrap()
             > (Utc::now().naive_utc() - Duration::minutes(*ALERTS_MAX_FREQUENCY_MINS))
     {
         error!(
