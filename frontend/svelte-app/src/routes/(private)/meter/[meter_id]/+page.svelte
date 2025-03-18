@@ -1,5 +1,4 @@
 <script lang="ts">
-  import chartjs from 'chart.js/auto';
   import { onMount } from 'svelte';
 
   import type { Series } from '@api/Common';
@@ -44,6 +43,9 @@
   data_arr.reverse();
 
   onMount(async () => {
+    const chartModule = await import('chart.js/auto');
+    const chartjs = chartModule.Chart;
+
     const canvas = document.getElementById('usage') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
     if (ctx) {
