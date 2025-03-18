@@ -108,6 +108,30 @@ pub async fn trigger_alerts(State(state): State<AppState>) -> Result<Extractor<H
                     error!("Error sending alert e-mail for meter: {}", &m.id);
                 }
             }
+
+            if state.alert_helper.isnt_reporting(&m, &measurements) {
+                let account = match state.storage.user_by_id(&m.owner_id).await {
+                    Ok(a) => {
+                        if a.is_none() {
+                            error!("Meter assigned to account, but account not found. Meter: {} Account: {}", &m.id, &m.owner_id);
+                            return internal_error();
+                        }
+                        a.unwrap()
+                    }
+                    Err(e) => {
+                        error!("Error triggering alerts: {}", e);
+                        return internal_error();
+                    }
+                };
+
+                if !state
+                    .mail_helper
+                    .not_reporting_alert(&state.settings, &account, &m)
+                    .await
+                {
+                    error!("Error sending alert e-mail for meter: {}", &m.id);
+                }
+            }
         }
     }
 

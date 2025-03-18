@@ -58,6 +58,7 @@ async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
         name: "kitchen".to_string(),
         status: Active,
         recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
     };
     let fm2 = FluidMeter {
         id: DEVICE_ID2.to_string(),
@@ -65,6 +66,7 @@ async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
         name: "kitchen".to_string(),
         status: Active,
         recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
     };
     let fm3 = FluidMeter {
         id: INACTIVE_DEVICE_ID.to_string(),
@@ -72,6 +74,7 @@ async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
         name: "kitchen".to_string(),
         status: Inactive,
         recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
     };
     let measurement = Measurement {
         id: MEASUREMENT_ID.to_string(),

@@ -24,12 +24,7 @@ impl FluidMeterStorage for PostgresStorage {
         let mut meters = match &options.page_cursor {
             Some(pc) => {
                 let query = r#"
-                        SELECT
-                            id,
-                            owner_id,
-                            name,
-                            status,
-                            recorded_at
+                        SELECT *
                         FROM fluid_meter
                         WHERE status = 'active' AND id > $1
                         ORDER BY id
@@ -53,12 +48,7 @@ impl FluidMeterStorage for PostgresStorage {
             }
             None => {
                 let query = r#"
-                        SELECT
-                            id,
-                            owner_id,
-                            name,
-                            status,
-                            recorded_at
+                        SELECT *
                         FROM fluid_meter
                         WHERE status = 'active'
                         ORDER BY id
@@ -131,12 +121,7 @@ impl FluidMeterStorage for PostgresStorage {
                 let order_stmt = format!("ORDER BY {} {}", sort_field, sort_direction);
                 let query = format!(
                     r#"
-                        SELECT
-                            id,
-                            owner_id,
-                            name,
-                            status,
-                            recorded_at
+                        SELECT *
                         FROM fluid_meter
                         {}
                         {}
@@ -168,12 +153,7 @@ impl FluidMeterStorage for PostgresStorage {
                 let order_stmt = format!("ORDER BY {} {}", sort_field, sort_direction);
                 let query = format!(
                     r#"
-                        SELECT
-                            id,
-                            owner_id,
-                            name,
-                            status,
-                            recorded_at
+                        SELECT *
                         FROM fluid_meter
                         WHERE owner_id = $1
                         {}
@@ -205,13 +185,14 @@ impl FluidMeterStorage for PostgresStorage {
 
     async fn insert_fluid_meter(&self, fluid_meter: &FluidMeter) -> Result<FluidMeter, Error> {
         match sqlx::query(
-            "INSERT INTO fluid_meter(id, owner_id, name, status, recorded_at) VALUES($1, $2, $3, $4, $5)",
+            "INSERT INTO fluid_meter(id, owner_id, name, status, recorded_at, updated_at) VALUES($1, $2, $3, $4, $5, $6)",
         )
         .bind(&fluid_meter.id)
         .bind(&fluid_meter.owner_id)
         .bind(&fluid_meter.name)
         .bind(&fluid_meter.status)
         .bind(fluid_meter.recorded_at)
+        .bind(fluid_meter.updated_at)
         .execute(&self.pool)
         .await
         {
