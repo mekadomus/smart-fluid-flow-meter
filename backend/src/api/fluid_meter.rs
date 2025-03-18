@@ -40,6 +40,7 @@ pub struct FluidMeter {
     pub name: String,
     pub status: FluidMeterStatus,
     pub recorded_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

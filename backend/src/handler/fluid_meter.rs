@@ -88,6 +88,7 @@ pub async fn create_fluid_meter(
         status: FluidMeterStatus::Active,
         owner_id: user.id.clone(),
         recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
     };
 
     let meter = match state.storage.insert_fluid_meter(&meter).await {

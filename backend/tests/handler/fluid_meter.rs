@@ -109,6 +109,7 @@ async fn get_fluid_meters_filters() {
         owner_id: user_id.to_string(),
         status: FluidMeterStatus::Active,
         recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
     };
     let mut fluid_meter_2 = fluid_meter_1.clone();
     fluid_meter_2.id = (user_id + 1).to_string();

@@ -1,0 +1,1 @@
+ALTER TABLE fluid_meter ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT now();
