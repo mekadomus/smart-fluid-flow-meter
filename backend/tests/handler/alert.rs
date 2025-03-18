@@ -103,6 +103,7 @@ async fn alert_success() {
     let app = create_app_mail_helper(Arc::new(mail_helper_mock)).await;
 
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(Method::POST)
@@ -115,4 +116,20 @@ async fn alert_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+
+    // Expect rate limit
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/v1/alert")
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
