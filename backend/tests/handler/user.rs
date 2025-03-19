@@ -20,6 +20,7 @@ use smart_fluid_flow_meter_backend::{
         AppError, AppErrorCode, ErrorData, ErrorResponse, ValidationIssue::TooFrequent,
     },
     helper::{mail::MockMailHelper, user::MockUserHelper},
+    middleware::auth::DefaultAuthorizer,
     storage::{postgres::PostgresStorage, UserStorage},
 };
 
@@ -296,7 +297,12 @@ async fn sign_up_user_duplicate() {
         .with(always(), always(), always())
         .return_const(true);
 
-    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
+    let app = create_app(
+        Arc::new(DefaultAuthorizer {}),
+        Arc::new(mail_helper_mock),
+        Arc::new(user_helper_mock),
+    )
+    .await;
 
     let input = SignUpUserInput {
         email: "other.user@you.know".to_string(),
@@ -367,7 +373,12 @@ async fn sign_up_user_email_failure() {
         .with(always(), always(), always())
         .return_const(false);
 
-    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
+    let app = create_app(
+        Arc::new(DefaultAuthorizer {}),
+        Arc::new(mail_helper_mock),
+        Arc::new(user_helper_mock),
+    )
+    .await;
 
     let input = SignUpUserInput {
         email: "email.failure@you.know".to_string(),
@@ -452,7 +463,12 @@ async fn sign_up_to_log_in_to_log_out_happy_path() {
         .with(always(), always(), always())
         .return_const(true);
 
-    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
+    let app = create_app(
+        Arc::new(DefaultAuthorizer {}),
+        Arc::new(mail_helper_mock),
+        Arc::new(user_helper_mock),
+    )
+    .await;
 
     let input = SignUpUserInput {
         email: "my.user@you.know".to_string(),
@@ -701,7 +717,12 @@ async fn recover_password_success() {
         .with(eq(new_password))
         .returning(|_| Ok(hashed_password.to_string()));
 
-    let app = create_app(Arc::new(mail_helper_mock), Arc::new(user_helper_mock)).await;
+    let app = create_app(
+        Arc::new(DefaultAuthorizer {}),
+        Arc::new(mail_helper_mock),
+        Arc::new(user_helper_mock),
+    )
+    .await;
 
     let response = app
         .clone()

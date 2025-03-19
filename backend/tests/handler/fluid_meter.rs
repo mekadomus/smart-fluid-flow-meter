@@ -20,65 +20,14 @@ use smart_fluid_flow_meter_backend::{
     helper::{alert::MockAlertHelper, mail::MockMailHelper, user::MockUserHelper},
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
-    storage::{postgres::PostgresStorage, Storage, UserStorage},
+    storage::{postgres::PostgresStorage, FluidMeterStorage, Storage, UserStorage},
 };
 
-async fn create_app_with_user(user_id: u16) -> (Router, Arc<dyn Storage>) {
-    let settings = Arc::new(Settings::from_file(
-        "/smart-fluid-flow-meter/tests/config/default.yaml",
-    ));
-    let storage =
-        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
-
-    let user = User {
-        id: user_id.to_string(),
-        provider: Password,
-        name: "Carlos".to_string(),
-        email: "a@b.c".to_string(),
-        password: Some("hello".to_string()),
-        email_verified_at: Some(Utc::now().naive_utc()),
-        recorded_at: Utc::now().naive_utc(),
-    };
-    let _ = storage.insert_user(&user).await;
-
-    let mut authorizer = MockAuthorizer::new();
-    authorizer
-        .expect_authorize()
-        .with(always(), always())
-        .returning(move |_, request| {
-            let user = User {
-                id: user_id.to_string(),
-                provider: Password,
-                name: "Carlos".to_string(),
-                email: "carlos@example.com".to_string(),
-                password: None,
-                email_verified_at: None,
-                recorded_at: Utc::now().naive_utc(),
-            };
-            request.extensions_mut().insert(user);
-
-            return Ok(());
-        });
-    let user_helper = Arc::new(MockUserHelper::new());
-    let mail_helper = Arc::new(MockMailHelper::new());
-
-    (
-        smart_fluid_flow_meter_backend::app(
-            Arc::new(MockAlertHelper::new()),
-            Arc::new(authorizer),
-            mail_helper,
-            settings,
-            storage.clone(),
-            user_helper,
-        )
-        .await,
-        storage,
-    )
-}
+use crate::helper::app::create_app_with_user;
 
 #[tokio::test]
 async fn get_fluid_meters_empty() {
-    let (app, _) = create_app_with_user(9999).await;
+    let app = create_app_with_user(9999).await;
     let response = app
         .oneshot(
             Request::builder()
@@ -101,7 +50,9 @@ async fn get_fluid_meters_empty() {
 #[tokio::test]
 async fn get_fluid_meters_filters() {
     let user_id = 158;
-    let (app, storage) = create_app_with_user(user_id).await;
+    let app = create_app_with_user(user_id).await;
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
 
     let fluid_meter_1 = FluidMeter {
         id: user_id.to_string(),
@@ -214,7 +165,7 @@ async fn get_fluid_meters_filters() {
 #[tokio::test]
 async fn create_fluid_meter() {
     let user_id = 500;
-    let (app, _) = create_app_with_user(user_id).await;
+    let app = create_app_with_user(user_id).await;
 
     let name = "kitchen";
     let input = CreateFluidMeterInput {
@@ -243,4 +194,80 @@ async fn create_fluid_meter() {
     assert_eq!(resp.owner_id, user_id.to_string());
     assert_eq!(resp.status, FluidMeterStatus::Active);
     assert!(Uuid::try_parse(&resp.id).is_ok());
+}
+
+#[tokio::test]
+async fn get_fluid_meter_success() {
+    let user_id = 500;
+    let app = create_app_with_user(user_id).await;
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+
+    let fm = FluidMeter {
+        id: Uuid::new_v4().to_string(),
+        name: "kitchen".to_string(),
+        owner_id: user_id.to_string(),
+        status: FluidMeterStatus::Active,
+        recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+    };
+    assert!(storage.insert_fluid_meter(&fm).await.is_ok());
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/v1/fluid-meter/{}", &fm.id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let resp: FluidMeter = serde_json::from_slice(&body).unwrap();
+    assert_eq!(resp.name, fm.name);
+    assert!(Utc::now().naive_utc() > resp.recorded_at);
+    assert_eq!(resp.owner_id, user_id.to_string());
+    assert_eq!(resp.status, FluidMeterStatus::Active);
+    assert!(Uuid::try_parse(&resp.id).is_ok());
+}
+
+#[tokio::test]
+async fn get_fluid_meter_no_owner() {
+    let user_id = 555;
+    let _ = create_app_with_user(555).await;
+    let app = create_app_with_user(554).await;
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+
+    // The user for `app` is 554, but the fluid meter owner is 555
+    let fm = FluidMeter {
+        id: Uuid::new_v4().to_string(),
+        name: "kitchen".to_string(),
+        owner_id: user_id.to_string(),
+        status: FluidMeterStatus::Active,
+        recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+    };
+    assert!(storage.insert_fluid_meter(&fm).await.is_ok());
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/v1/fluid-meter/{}", &fm.id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
