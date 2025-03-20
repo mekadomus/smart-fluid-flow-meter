@@ -1,9 +1,14 @@
-use crate::error::app_error::AppError;
-use crate::http_client::cloudflare::{check_captcha, CheckCaptchaRequest};
+use crate::{
+    error::app_error::AppError,
+    http_client::cloudflare::{check_captcha, CheckCaptchaRequest},
+    storage::Storage,
+};
 
 use async_trait::async_trait;
 use mockall::automock;
+use std::sync::Arc;
 use tracing::error;
+use uuid::Uuid;
 use zxcvbn::{zxcvbn, Score::Three};
 
 #[automock]
@@ -13,6 +18,12 @@ pub trait UserHelper: Send + Sync {
     fn password_is_weak(&self, pass: &str) -> bool;
     fn hash(&self, input: &str) -> Result<String, AppError>;
     fn verify_hash(&self, input: &str, hash: &str) -> Result<bool, AppError>;
+    async fn owns_fluid_meter(
+        &self,
+        storage: Arc<dyn Storage>,
+        user_id: &str,
+        meter_id: &str,
+    ) -> Result<bool, AppError>;
 }
 
 pub struct DefaultUserHelper;
@@ -66,6 +77,16 @@ impl UserHelper for DefaultUserHelper {
                 return Err(AppError::ServerError);
             }
         };
+    }
+
+    async fn owns_fluid_meter(
+        &self,
+        storage: Arc<dyn Storage>,
+        user_id: &str,
+        meter_id: &str,
+    ) -> Result<bool, AppError> {
+        return Ok(!Uuid::try_parse(&meter_id).is_err()
+            && storage.is_fluid_meter_owner(&meter_id, &user_id).await?);
     }
 }
 

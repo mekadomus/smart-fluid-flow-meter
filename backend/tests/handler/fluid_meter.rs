@@ -2,11 +2,10 @@ use axum::{
     body::Body,
     http,
     http::{Request, StatusCode},
-    Router,
 };
 use chrono::Utc;
 use http_body_util::BodyExt;
-use mockall::predicate::always;
+use mockall::predicate::{always, eq};
 use std::sync::Arc;
 use tower::util::ServiceExt;
 use uuid::Uuid;
@@ -15,15 +14,12 @@ use smart_fluid_flow_meter_backend::{
     api::{
         common::PaginatedResponse,
         fluid_meter::{CreateFluidMeterInput, FluidMeter, FluidMeterStatus},
-        user::{User, UserAuthProvider::Password},
     },
-    helper::{alert::MockAlertHelper, mail::MockMailHelper, user::MockUserHelper},
-    middleware::auth::MockAuthorizer,
-    settings::settings::Settings,
-    storage::{postgres::PostgresStorage, FluidMeterStorage, Storage, UserStorage},
+    helper::user::MockUserHelper,
+    storage::{postgres::PostgresStorage, FluidMeterStorage},
 };
 
-use crate::helper::app::create_app_with_user;
+use crate::helper::app::{create_app_with_user, create_app_with_user_user_helper};
 
 #[tokio::test]
 async fn get_fluid_meters_empty() {
@@ -199,12 +195,21 @@ async fn create_fluid_meter() {
 #[tokio::test]
 async fn get_fluid_meter_success() {
     let user_id = 500;
-    let app = create_app_with_user(user_id).await;
+    let fm_id = Uuid::new_v4().to_string();
+
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_owns_fluid_meter()
+        .with(always(), eq(user_id.to_string()), eq(fm_id.to_string()))
+        .returning(|_, _, _| Ok(true));
+
+    let app = create_app_with_user_user_helper(user_id, Arc::new(user_helper_mock)).await;
     let storage =
         Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
 
     let fm = FluidMeter {
-        id: Uuid::new_v4().to_string(),
+        id: fm_id.to_string(),
         name: "kitchen".to_string(),
         owner_id: user_id.to_string(),
         status: FluidMeterStatus::Active,
@@ -241,13 +246,24 @@ async fn get_fluid_meter_success() {
 async fn get_fluid_meter_no_owner() {
     let user_id = 555;
     let _ = create_app_with_user(555).await;
-    let app = create_app_with_user(554).await;
+
+    let fm_id = Uuid::new_v4();
+    let req_user_id = 554;
+
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_owns_fluid_meter()
+        .with(always(), eq(req_user_id.to_string()), eq(fm_id.to_string()))
+        .returning(|_, _, _| Ok(false));
+
+    let app = create_app_with_user_user_helper(req_user_id, Arc::new(user_helper_mock)).await;
     let storage =
         Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
 
     // The user for `app` is 554, but the fluid meter owner is 555
     let fm = FluidMeter {
-        id: Uuid::new_v4().to_string(),
+        id: fm_id.to_string(),
         name: "kitchen".to_string(),
         owner_id: user_id.to_string(),
         status: FluidMeterStatus::Active,
@@ -270,4 +286,94 @@ async fn get_fluid_meter_no_owner() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn activate_deactivate_fluid_meter() {
+    let user_id = 321;
+    let fm_id = Uuid::new_v4().to_string();
+
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_owns_fluid_meter()
+        .with(always(), eq(user_id.to_string()), eq(fm_id.to_string()))
+        .returning(|_, _, _| Ok(true));
+
+    let app = create_app_with_user_user_helper(user_id, Arc::new(user_helper_mock)).await;
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+
+    let fm = FluidMeter {
+        id: fm_id.to_string(),
+        name: "kitchen".to_string(),
+        owner_id: user_id.to_string(),
+        status: FluidMeterStatus::Active,
+        recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+    };
+    assert!(storage.insert_fluid_meter(&fm).await.is_ok());
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/v1/fluid-meter/{}", &fm.id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri(format!("/v1/fluid-meter/{}/deactivate", &fm.id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        storage
+            .get_fluid_meter_by_id(&fm_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        FluidMeterStatus::Inactive
+    );
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri(format!("/v1/fluid-meter/{}/activate", &fm.id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        storage
+            .get_fluid_meter_by_id(&fm_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        FluidMeterStatus::Active
+    );
 }

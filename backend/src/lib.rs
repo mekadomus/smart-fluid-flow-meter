@@ -27,7 +27,10 @@ use tracing::{error, info, Level};
 use crate::{
     handler::{
         alert::trigger_alerts,
-        fluid_meter::{create_fluid_meter, fluid_meters, get_fluid_meter},
+        fluid_meter::{
+            activate_fluid_meter, create_fluid_meter, deactivate_fluid_meter, fluid_meters,
+            get_fluid_meter,
+        },
         health::health_check,
         measurement::{get_measurements_for_meter, save_measurement},
         user::{
@@ -122,6 +125,14 @@ pub async fn app(
         .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/fluid-meter", post(create_fluid_meter))
         .route("/v1/fluid-meter/{meter_id}", get(get_fluid_meter))
+        .route(
+            "/v1/fluid-meter/{meter_id}/activate",
+            post(activate_fluid_meter),
+        )
+        .route(
+            "/v1/fluid-meter/{meter_id}/deactivate",
+            post(deactivate_fluid_meter),
+        )
         .route(
             "/v1/fluid-meter/{meter_id}/measurement",
             get(get_measurements_for_meter),

@@ -21,6 +21,8 @@ use std::sync::Arc;
 
 #[async_trait]
 pub trait FluidMeterStorage {
+    async fn activate_fluid_meter(&self, meter_id: &str) -> Result<(), Error>;
+    async fn deactivate_fluid_meter(&self, meter_id: &str) -> Result<(), Error>;
     /// Return a paginated list of active fluid meters for all accounts
     async fn get_active_fluid_meters(
         &self,

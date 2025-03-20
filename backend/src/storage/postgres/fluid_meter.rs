@@ -6,7 +6,11 @@ use crate::{
         common::{
             PaginatedRequest, PaginatedResponse, Pagination, SortDirection, DEFAULT_PAGE_SIZE,
         },
-        fluid_meter::{FluidMeter, FluidMetersInput, FluidMetersSort},
+        fluid_meter::{
+            FluidMeter,
+            FluidMeterStatus::{Active, Inactive},
+            FluidMetersInput, FluidMetersSort,
+        },
     },
     storage::{
         error::{undefined, Error, ErrorCode},
@@ -26,12 +30,13 @@ impl FluidMeterStorage for PostgresStorage {
                 let query = r#"
                         SELECT *
                         FROM fluid_meter
-                        WHERE status = 'active' AND id > $1
+                        WHERE status = $1 AND id > $2
                         ORDER BY id
-                        LIMIT $2
+                        LIMIT $3
                     "#;
 
                 match sqlx::query_as(&query)
+                    .bind(Active)
                     .bind(&pc)
                     .bind((options.page_size + 1) as i32)
                     .fetch_all(&self.pool)
@@ -50,12 +55,13 @@ impl FluidMeterStorage for PostgresStorage {
                 let query = r#"
                         SELECT *
                         FROM fluid_meter
-                        WHERE status = 'active'
+                        WHERE status = $1
                         ORDER BY id
-                        LIMIT $1
+                        LIMIT $2
                     "#;
 
                 match sqlx::query_as(&query)
+                    .bind(Active)
                     .bind((options.page_size + 1) as i32)
                     .fetch_all(&self.pool)
                     .await
@@ -249,6 +255,42 @@ impl FluidMeterStorage for PostgresStorage {
                 }
 
                 error!("Error getting fluid_meter for user by id. {}", e);
+                return undefined();
+            }
+        };
+    }
+
+    async fn activate_fluid_meter(&self, meter_id: &str) -> Result<(), Error> {
+        match sqlx::query("UPDATE fluid_meter SET status = $1 WHERE id = $2")
+            .bind(&Active)
+            .bind(&meter_id)
+            .execute(&self.pool)
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                error!(
+                    "Error activating fluid_meter id. {}. Error: {}",
+                    meter_id, e
+                );
+                return undefined();
+            }
+        };
+    }
+
+    async fn deactivate_fluid_meter(&self, meter_id: &str) -> Result<(), Error> {
+        match sqlx::query("UPDATE fluid_meter SET status = $1 WHERE id = $2")
+            .bind(&Inactive)
+            .bind(&meter_id)
+            .execute(&self.pool)
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                error!(
+                    "Error deactivating fluid_meter id. {}. Error: {}",
+                    meter_id, e
+                );
                 return undefined();
             }
         };
