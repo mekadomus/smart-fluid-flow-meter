@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 
 import { AuthorizationCookie } from '@utils/Constants';
-import { getMeasurements } from '@api/FluidMeter';
+import { getMeasurements, getFluidMeter } from '@api/FluidMeter';
 
 export const load: PageServerLoad = async ({ params, cookies }) => {
   const token = cookies.get(AuthorizationCookie);
@@ -11,9 +11,13 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
       error: 'No authorization token'
     };
   }
+  const [series, meter_data] = await Promise.all([
+    await getMeasurements(token, params.meter_id),
+    await getFluidMeter(token, params.meter_id)
+  ]);
 
   return {
-    meter_id: params.meter_id,
-    series: await getMeasurements(token, params.meter_id)
+    meter_data,
+    series
   };
 };
