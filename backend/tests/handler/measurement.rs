@@ -8,7 +8,11 @@ use smart_fluid_flow_meter_backend::{
         measurement::{Measurement, SaveMeasurementInput},
         user::{User, UserAuthProvider::Password},
     },
-    helper::{alert::MockAlertHelper, mail::MockMailHelper, user::MockUserHelper},
+    helper::{
+        alert::MockAlertHelper,
+        mail::MockMailHelper,
+        user::{MockUserHelper, UserHelper},
+    },
     middleware::auth::MockAuthorizer,
     settings::settings::Settings,
     storage::{
@@ -36,6 +40,13 @@ pub const INACTIVE_DEVICE_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a890
 pub const MEASUREMENT_ID: &'static str = "3fe50206-25d0-4830-9de1-b48cc2a89004";
 
 async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
+    create_app_user_helper(with_session, Arc::new(MockUserHelper::new())).await
+}
+
+async fn create_app_user_helper(
+    with_session: bool,
+    user_helper: Arc<dyn UserHelper>,
+) -> (Router, Arc<dyn Storage>) {
     let settings = Arc::new(Settings::from_file(
         "/smart-fluid-flow-meter/tests/config/default.yaml",
     ));
@@ -99,7 +110,6 @@ async fn create_app(with_session: bool) -> (Router, Arc<dyn Storage>) {
             Ok(())
         });
 
-    let user_helper = Arc::new(MockUserHelper::new());
     let mail_helper = Arc::new(MockMailHelper::new());
     return (
         smart_fluid_flow_meter_backend::app(
@@ -283,7 +293,14 @@ async fn save_measurement_ignores_duplicate() {
 
 #[tokio::test]
 async fn get_measurements_for_meter_not_owned() {
-    let (app, _) = create_app(true).await;
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_owns_fluid_meter()
+        .with(always(), always(), always())
+        .returning(|_, _, _| Ok(false));
+
+    let (app, _) = create_app_user_helper(true, Arc::new(user_helper_mock)).await;
 
     let response = app
         .clone()
@@ -302,28 +319,15 @@ async fn get_measurements_for_meter_not_owned() {
 }
 
 #[tokio::test]
-async fn get_measurements_for_meter_invalid_meter() {
-    let (app, _) = create_app(true).await;
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(http::Method::GET)
-                .uri("/v1/fluid-meter/bad-id/measurement")
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from("{}"))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-}
-
-#[tokio::test]
 async fn get_measurements_for_meter_success() {
-    let (app, _) = create_app(true).await;
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_owns_fluid_meter()
+        .with(always(), always(), always())
+        .returning(|_, _, _| Ok(true));
+
+    let (app, _) = create_app_user_helper(true, Arc::new(user_helper_mock)).await;
 
     let response = app
         .clone()

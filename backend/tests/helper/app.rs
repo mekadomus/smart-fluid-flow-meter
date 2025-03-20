@@ -49,22 +49,15 @@ pub async fn create_app_mail_helper(mail_helper: Arc<dyn MailHelper>) -> Router 
     .await;
 }
 
-pub async fn create_app_authorizer(authorizer: Arc<dyn Authorizer>) -> Router {
-    let authorizer = DefaultAuthorizer {};
-    let mail_helper = MockMailHelper::new();
+pub async fn create_app_with_user(user_id: u16) -> Router {
     let user_helper = MockUserHelper::new();
-    return create_app(
-        Arc::new(authorizer),
-        Arc::new(mail_helper),
-        Arc::new(user_helper),
-    )
-    .await;
+    create_app_with_user_user_helper(user_id, Arc::new(user_helper)).await
 }
 
-pub async fn create_app_with_user(user_id: u16) -> Router {
-    let settings = Arc::new(Settings::from_file(
-        "/smart-fluid-flow-meter/tests/config/default.yaml",
-    ));
+pub async fn create_app_with_user_user_helper(
+    user_id: u16,
+    user_helper: Arc<dyn UserHelper>,
+) -> Router {
     let storage =
         Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
 
@@ -97,10 +90,9 @@ pub async fn create_app_with_user(user_id: u16) -> Router {
 
             return Ok(());
         });
-    let user_helper = Arc::new(MockUserHelper::new());
     let mail_helper = Arc::new(MockMailHelper::new());
 
-    create_app(Arc::new(authorizer), mail_helper, user_helper).await
+    create_app(Arc::new(authorizer), mail_helper, user_helper.clone()).await
 }
 
 pub async fn create_app(

@@ -99,27 +99,15 @@ pub async fn get_measurements_for_meter(
     Path(meter_id): Path<String>,
     user: Extension<User>,
 ) -> Result<Extractor<Series>, AppError> {
-    let mut validation_errors = vec![];
-    if Uuid::try_parse(&meter_id).is_err() {
-        validation_errors.push(FailedValidation {
+    if !state
+        .user_helper
+        .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+        .await?
+    {
+        return Err(AppError::ValidationError(vec![FailedValidation {
             field: "meter_id".to_string(),
             issue: Invalid,
-        });
-    } else {
-        if !state
-            .storage
-            .is_fluid_meter_owner(&meter_id, &user.id)
-            .await?
-        {
-            validation_errors.push(FailedValidation {
-                field: "meter_id".to_string(),
-                issue: Invalid,
-            });
-        }
-    }
-
-    if !validation_errors.is_empty() {
-        return Err(AppError::ValidationError(validation_errors));
+        }]));
     }
 
     let one_month_ago = Utc::now().naive_utc() - Duration::days(30);

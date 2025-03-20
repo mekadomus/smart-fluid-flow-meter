@@ -106,27 +106,15 @@ pub async fn get_fluid_meter(
     Path(meter_id): Path<String>,
     user: Extension<User>,
 ) -> Result<Extractor<FluidMeter>, AppError> {
-    let mut validation_errors = vec![];
-    if Uuid::try_parse(&meter_id).is_err() {
-        validation_errors.push(FailedValidation {
+    if !state
+        .user_helper
+        .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+        .await?
+    {
+        return Err(AppError::ValidationError(vec![FailedValidation {
             field: "meter_id".to_string(),
             issue: Invalid,
-        });
-    } else {
-        if !state
-            .storage
-            .is_fluid_meter_owner(&meter_id, &user.id)
-            .await?
-        {
-            validation_errors.push(FailedValidation {
-                field: "meter_id".to_string(),
-                issue: Invalid,
-            });
-        }
-    }
-
-    if !validation_errors.is_empty() {
-        return Err(AppError::ValidationError(validation_errors));
+        }]));
     }
 
     match state.storage.get_fluid_meter_by_id(&meter_id).await {
@@ -137,6 +125,62 @@ pub async fn get_fluid_meter(
             }
 
             return Ok(Extractor(m.unwrap()));
+        }
+        Err(e) => {
+            error!("Error getting fluid meter: {}. Error: {}", meter_id, e);
+            return internal_error();
+        }
+    }
+}
+
+/// Activate given meter
+pub async fn activate_fluid_meter(
+    State(state): State<AppState>,
+    Path(meter_id): Path<String>,
+    user: Extension<User>,
+) -> Result<Extractor<()>, AppError> {
+    if !state
+        .user_helper
+        .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+        .await?
+    {
+        return Err(AppError::ValidationError(vec![FailedValidation {
+            field: "meter_id".to_string(),
+            issue: Invalid,
+        }]));
+    }
+
+    match state.storage.activate_fluid_meter(&meter_id).await {
+        Ok(_) => {
+            return Ok(Extractor(()));
+        }
+        Err(e) => {
+            error!("Error getting fluid meter: {}. Error: {}", meter_id, e);
+            return internal_error();
+        }
+    }
+}
+
+/// Deactivate given meter
+pub async fn deactivate_fluid_meter(
+    State(state): State<AppState>,
+    Path(meter_id): Path<String>,
+    user: Extension<User>,
+) -> Result<Extractor<()>, AppError> {
+    if !state
+        .user_helper
+        .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+        .await?
+    {
+        return Err(AppError::ValidationError(vec![FailedValidation {
+            field: "meter_id".to_string(),
+            issue: Invalid,
+        }]));
+    }
+
+    match state.storage.deactivate_fluid_meter(&meter_id).await {
+        Ok(_) => {
+            return Ok(Extractor(()));
         }
         Err(e) => {
             error!("Error getting fluid meter: {}. Error: {}", meter_id, e);
