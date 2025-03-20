@@ -5,12 +5,12 @@ import { PAGE_SIZE } from './Common';
 import { httpGet } from '../utils/Http';
 import { httpPostBrowser, httpGetBrowser } from '../utils/HttpClient';
 
-enum FluidMeterStatus {
-  Active,
+export enum FluidMeterStatus {
+  Active = 'Active',
   // Still shown to the user, but not triggering alarms
-  Inactive,
+  Inactive = 'Inactive',
   // Not shown to the user
-  Deleted
+  Deleted = 'Deleted'
 }
 
 export type FluidMeter = {
@@ -24,6 +24,51 @@ export type FluidMeter = {
 export type CreateFluidMeterInput = {
   name: string;
 };
+
+/**
+ * Get information about a fluid meter
+ */
+export async function getFluidMeter(
+  token: string,
+  meter_id: string
+): Promise<FluidMeter | ErrorResponse> {
+  const res = await httpGet(`/v1/fluid-meter/${meter_id}`, token);
+  return res.json();
+}
+
+/**
+ * Deactivate a fluid meter
+ */
+export async function deactivateFluidMeter(meter_id: string): Promise<number> {
+  const res = await httpPostBrowser(`/v1/fluid-meter/${meter_id}/deactivate`, {});
+
+  if (res && 'code' in res) {
+    if (res.code == 'InternalError') {
+      return 500;
+    } else {
+      return 400;
+    }
+  }
+
+  return 200;
+}
+
+/**
+ * Activate a fluid meter
+ */
+export async function activateFluidMeter(meter_id: string): Promise<number> {
+  const res = await httpPostBrowser(`/v1/fluid-meter/${meter_id}/activate`, {});
+
+  if (res && 'code' in res) {
+    if (res.code == 'InternalError') {
+      return 500;
+    } else {
+      return 400;
+    }
+  }
+
+  return 200;
+}
 
 /**
  * Get a page of fluid meters

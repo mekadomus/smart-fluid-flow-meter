@@ -88,7 +88,6 @@ export async function logOut(): Promise<number> {
  */
 export async function setNewPassword(input: NewPasswordInput): Promise<number> {
   const res = await httpPostBrowser(`/v1/new-password`, input);
-  console.log(res);
   if ('code' in res) {
     if (res.code == 'InternalError') {
       return 500;

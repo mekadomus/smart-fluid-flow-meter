@@ -1,12 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
+  import { getContext, onMount } from 'svelte';
 
+  import type { FluidMeter } from '@api/FluidMeter';
+  import type { Message } from '@api/Message';
   import type { Series } from '@api/Common';
+
+  import { FluidMeterStatus, activateFluidMeter, deactivateFluidMeter } from '@api/FluidMeter';
+  import { MessageType } from '@api/Message';
+
+  const globalMessages: SvelteMap<string, Message> = getContext('globalMessages');
 
   type Props = {
     data: {
       series: Series;
-      meter_id: string;
+      meter_data: FluidMeter;
     };
   };
 
@@ -16,7 +24,7 @@
   };
 
   let props: Props = $props();
-  let meter_id = $state(props.data.meter_id);
+  let meter_data = $state(props.data.meter_data);
 
   // We are getting data per hour for the last month ordered from newest to oldest.
   // Let's convert it to data per day from oldest to newest
@@ -65,10 +73,37 @@
       });
     }
   });
+
+  async function toggleStatus() {
+    let r = null;
+    let newStatus = FluidMeterStatus.Active;
+    if (meter_data.status == FluidMeterStatus.Active) {
+      r = await deactivateFluidMeter(meter_data.id);
+      newStatus = FluidMeterStatus.Inactive;
+    } else {
+      r = await activateFluidMeter(meter_data.id);
+    }
+
+    if (r == 200) {
+      meter_data.status = newStatus;
+    } else {
+      let message: Message = {
+        type: MessageType.Error,
+        text: 'Sorry. We failed to change the status.'
+      };
+      globalMessages.set('status-change-error', message);
+    }
+  }
 </script>
 
 <div class="container">
-  <h1>{meter_id}</h1>
+  <h1>{meter_data.name} ({meter_data.id})</h1>
+  <p><strong>Status</strong>: {meter_data.status}</p>
+  <div class="button-container">
+    <button class="button" onclick={() => toggleStatus()}
+      >{meter_data.status == FluidMeterStatus.Active ? 'Deactivate' : 'Activate'}</button
+    >
+  </div>
   <p>Usage in the last 30 days</p>
   <div style="width: 800px;"><canvas id="usage"></canvas></div>
 </div>
@@ -78,5 +113,10 @@
     margin: 0 auto;
     margin-top: 1rem;
     width: 80%;
+  }
+
+  .button-container {
+    width: 150px;
+    margin-bottom: 150px;
   }
 </style>
