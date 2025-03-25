@@ -28,11 +28,8 @@ use crate::{
     handler::{
         alert::trigger_alerts,
         fluid_meter::{
-            activate_fluid_meter,
-            create_fluid_meter,
-            deactivate_fluid_meter,
-            fluid_meters,
-            get_fluid_meter, //, get_fluid_meter_alerts
+            activate_fluid_meter, create_fluid_meter, deactivate_fluid_meter, fluid_meters,
+            get_fluid_meter, get_fluid_meter_alerts,
         },
         health::health_check,
         measurement::{get_measurements_for_meter, save_measurement},
@@ -132,7 +129,10 @@ pub async fn app(
             "/v1/fluid-meter/{meter_id}/activate",
             post(activate_fluid_meter),
         )
-        // .route("/v1/fluid-meter/{meter_id}/alert", get(get_fluid_meter_alerts))
+        .route(
+            "/v1/fluid-meter/{meter_id}/alert",
+            get(get_fluid_meter_alerts),
+        )
         .route(
             "/v1/fluid-meter/{meter_id}/deactivate",
             post(deactivate_fluid_meter),
