@@ -9,7 +9,9 @@ use uuid::Uuid;
 use crate::{
     api::{
         common::{PaginatedResponse, Pagination, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-        fluid_meter::{CreateFluidMeterInput, FluidMeter, FluidMeterStatus, FluidMetersInput},
+        fluid_meter::{
+            CreateFluidMeterInput, FluidMeter, FluidMeterAlerts, FluidMeterStatus, FluidMetersInput,
+        },
         user::User,
     },
     error::app_error::{
@@ -189,30 +191,37 @@ pub async fn deactivate_fluid_meter(
     }
 }
 
-// Show all alerts associated to a fluid meter
-// pub async fn get_fluid_meter_alerts(
-//     State(state): State<AppState>,
-//     Path(meter_id): Path<String>,
-//     user: Extension<User>,
-// ) -> Result<Extractor<FluidMeterAlerts>, AppError> {
-//     // if !state
-//     //     .user_helper
-//     //     .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
-//     //     .await?
-//     // {
-//     //     return Err(AppError::ValidationError(vec![FailedValidation {
-//     //         field: "meter_id".to_string(),
-//     //         issue: Invalid,
-//     //     }]));
-//     // }
-//
-//     // match state.storage.deactivate_fluid_meter(&meter_id).await {
-//     //     Ok(_) => {
-//     //         return Ok(Extractor(()));
-//     //     }
-//     //     Err(e) => {
-//     //         error!("Error getting fluid meter: {}. Error: {}", meter_id, e);
-//     //         return internal_error();
-//     //     }
-//     // }
-// }
+/// Show all alerts associated to a fluid meter
+pub async fn get_fluid_meter_alerts(
+    State(state): State<AppState>,
+    Path(meter_id): Path<String>,
+    user: Extension<User>,
+) -> Result<Extractor<FluidMeterAlerts>, AppError> {
+    if !state
+        .user_helper
+        .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+        .await?
+    {
+        return Err(AppError::ValidationError(vec![FailedValidation {
+            field: "meter_id".to_string(),
+            issue: Invalid,
+        }]));
+    }
+
+    let fm = match state.storage.get_fluid_meter_by_id(&meter_id).await {
+        Ok(m) => m.unwrap(),
+        Err(e) => {
+            error!("Error getting metter: {}", e);
+            return internal_error();
+        }
+    };
+
+    match state
+        .alert_helper
+        .get_alerts(state.storage.clone(), &fm)
+        .await
+    {
+        Ok(a) => Ok(Extractor(a)),
+        Err(e) => Err(e),
+    }
+}

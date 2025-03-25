@@ -14,15 +14,15 @@ use uuid::Uuid;
 use smart_fluid_flow_meter_backend::{
     api::{
         alert::{Alert, AlertType},
-        fluid_meter::FluidMeterAlerts,
+        fluid_meter::{FluidMeter, FluidMeterAlerts, FluidMeterStatus::Active},
         measurement::Measurement,
     },
-    helper::mail::MockMailHelper,
-    storage::{postgres::PostgresStorage, MeasurementStorage},
+    helper::{mail::MockMailHelper, user::MockUserHelper},
+    storage::{postgres::PostgresStorage, FluidMeterStorage, MeasurementStorage},
 };
 
 use crate::helper::{
-    app::create_app_mail_helper,
+    app::{create_app_mail_helper, create_app_with_user_user_helper},
     fluid_meter::{create_fluid_meter, create_fluid_meter_at},
 };
 
@@ -154,4 +154,46 @@ async fn alert_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[test(tokio::test)]
+async fn get_alerts() {
+    let user_id = 4355;
+    let meter_id = Uuid::new_v4().to_string();
+
+    // Mock UserHelper
+    let mut user_helper_mock = MockUserHelper::new();
+    user_helper_mock
+        .expect_owns_fluid_meter()
+        .with(always(), always(), always())
+        .returning(|_, _, _| Ok(true));
+
+    let app = create_app_with_user_user_helper(user_id, Arc::new(user_helper_mock)).await;
+
+    let storage =
+        Arc::new(PostgresStorage::new("postgresql://user:password@postgres/mekadomus").await);
+    let fluid_meter = FluidMeter {
+        id: meter_id.to_string(),
+        name: "kitchen".to_string(),
+        owner_id: user_id.to_string(),
+        status: Active,
+        recorded_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+    };
+    assert!(storage.insert_fluid_meter(&fluid_meter).await.is_ok());
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(format!("/v1/fluid-meter/{}/alert", meter_id))
+                .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
 }
