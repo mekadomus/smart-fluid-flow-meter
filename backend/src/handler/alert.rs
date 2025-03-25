@@ -77,10 +77,12 @@ pub async fn trigger_alerts(State(state): State<AppState>) -> Result<Extractor<H
                 .await
             {
                 Ok(a) => {
-                    if alerts.contains_key(&m.owner_id) {
-                        alerts.get_mut(&m.owner_id).unwrap().push(a);
-                    } else {
-                        alerts.insert(m.owner_id, vec![a]);
+                    if a.alerts.len() > 0 {
+                        if alerts.contains_key(&m.owner_id) {
+                            alerts.get_mut(&m.owner_id).unwrap().push(a);
+                        } else {
+                            alerts.insert(m.owner_id, vec![a]);
+                        }
                     }
                 }
                 Err(e) => {
