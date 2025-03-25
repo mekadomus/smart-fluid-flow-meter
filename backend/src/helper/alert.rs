@@ -1,15 +1,28 @@
-use crate::api::{
-    fluid_meter::{FluidMeter, FluidMeterStatus::Active},
-    measurement::Measurement,
+use crate::{
+    api::{
+        alert::{Alert, AlertType},
+        fluid_meter::{FluidMeter, FluidMeterAlerts, FluidMeterStatus::Active},
+        measurement::Measurement,
+    },
+    error::app_error::{internal_error, AppError},
+    storage::Storage,
 };
 
+use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use mockall::automock;
-
-pub const CONSTANT_THRESHOLD: &'static u8 = &4;
+use std::sync::Arc;
+use tracing::error;
 
 #[automock]
+#[async_trait]
 pub trait AlertHelper: Send + Sync {
+    /// Returns all alerts for the given fluid meter
+    async fn get_alerts(
+        &self,
+        storage: Arc<dyn Storage>,
+        fluid_meter: &FluidMeter,
+    ) -> Result<FluidMeterAlerts, AppError>;
     /// Returns true if the meter has had non-stop flow for a threshold
     fn has_constant_flow(&self, measurements: &Vec<Measurement>) -> bool;
     /// Returns true if the meter hasn't reported measuments for a threshold
@@ -17,11 +30,57 @@ pub trait AlertHelper: Send + Sync {
 }
 
 pub const CONSTANT_FLOW_THRESHOLD: &'static usize = &5;
+pub const MEASUREMENTS_PAGE_SIZE: &'static u8 = &10;
 pub const NO_REPORTS_THRESHOLD: &'static Duration = &Duration::days(1);
 
 pub struct DefaultAlertHelper;
 
+#[async_trait]
 impl AlertHelper for DefaultAlertHelper {
+    async fn get_alerts(
+        &self,
+        storage: Arc<dyn Storage>,
+        fluid_meter: &FluidMeter,
+    ) -> Result<FluidMeterAlerts, AppError> {
+        let mut result = FluidMeterAlerts {
+            meter: fluid_meter.clone(),
+            alerts: vec![],
+        };
+
+        let since = Utc::now().naive_utc() - Duration::hours(2);
+        let measurements = match storage
+            .get_measurements(
+                fluid_meter.id.clone(),
+                since,
+                *MEASUREMENTS_PAGE_SIZE as u32,
+            )
+            .await
+        {
+            Ok(m) => m,
+            Err(e) => {
+                error!(
+                    "Failed to get measurements for meter {}. Error: {}",
+                    &fluid_meter.id, e
+                );
+                return internal_error();
+            }
+        };
+
+        if self.has_constant_flow(&measurements) {
+            result.alerts.push(Alert {
+                alert_type: AlertType::ConstantFlow,
+            });
+        }
+
+        if self.isnt_reporting(&fluid_meter, &measurements) {
+            result.alerts.push(Alert {
+                alert_type: AlertType::NotReporting,
+            });
+        }
+
+        return Ok(result);
+    }
+
     fn has_constant_flow(&self, measurements: &Vec<Measurement>) -> bool {
         if measurements.len() < *CONSTANT_FLOW_THRESHOLD {
             return false;
@@ -48,4 +107,192 @@ impl AlertHelper for DefaultAlertHelper {
 
         return false;
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AlertHelper, DefaultAlertHelper};
+    use crate::{
+        api::fluid_meter::{
+            FluidMeter,
+            FluidMeterStatus::{Active, Inactive},
+        },
+        helper::alert::Measurement,
+    };
+
+    use chrono::{Duration, Utc};
+
+    #[test]
+    fn isnt_reporting_not_active() {
+        let fm = FluidMeter {
+            id: "some_id".to_string(),
+            owner_id: "some_owner_id".to_string(),
+            name: "name".to_string(),
+            status: Inactive,
+            recorded_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        };
+
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![];
+        assert!(!helper.isnt_reporting(&fm, &v));
+    }
+
+    #[test]
+    fn isnt_reporting_updated_at() {
+        let fm = FluidMeter {
+            id: "some_id".to_string(),
+            owner_id: "some_owner_id".to_string(),
+            name: "name".to_string(),
+            status: Active,
+            recorded_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        };
+
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![];
+        assert!(!helper.isnt_reporting(&fm, &v));
+    }
+
+    #[test]
+    fn isnt_reporting_last_measurement() {
+        let fm = FluidMeter {
+            id: "some_id".to_string(),
+            owner_id: "some_owner_id".to_string(),
+            name: "name".to_string(),
+            status: Active,
+            recorded_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc() - Duration::hours(25),
+        };
+
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![Measurement {
+            id: "id".to_string(),
+            measurement: "0.0".to_string(),
+            device_id: "some_id".to_string(),
+            recorded_at: Utc::now().naive_utc(),
+        }];
+        assert!(!helper.isnt_reporting(&fm, &v));
+    }
+
+    #[test]
+    fn isnt_reporting_alerting() {
+        let fm = FluidMeter {
+            id: "some_id".to_string(),
+            owner_id: "some_owner_id".to_string(),
+            name: "name".to_string(),
+            status: Active,
+            recorded_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc() - Duration::hours(25),
+        };
+
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![Measurement {
+            id: "id".to_string(),
+            measurement: "0.0".to_string(),
+            device_id: "some_id".to_string(),
+            recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+        }];
+        assert!(helper.isnt_reporting(&fm, &v));
+    }
+
+    #[test]
+    fn has_constant_flow_no_measurements() {
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![];
+        assert!(!helper.has_constant_flow(&v));
+    }
+
+    #[test]
+    fn has_constant_flow_not_alerting() {
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "0.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+        ];
+        assert!(!helper.has_constant_flow(&v));
+    }
+
+    #[test]
+    fn has_constant_flow_alerting() {
+        let helper = DefaultAlertHelper {};
+        let v: Vec<Measurement> = vec![
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+            Measurement {
+                id: "id".to_string(),
+                measurement: "1.0".to_string(),
+                device_id: "some_id".to_string(),
+                recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+            },
+        ];
+        assert!(helper.has_constant_flow(&v));
+    }
+
+    // TODO
+    // #[test]
+    // fn get_alerts_success() {
+    //     let fm = FluidMeter{
+    //         id: "some_id".to_string(),
+    //         owner_id: "some_owner_id".to_string(),
+    //         name: "name".to_string(),
+    //         status: Active,
+    //         recorded_at: Utc::now().naive_utc(),
+    //         updated_at: Utc::now().naive_utc() - Duration::hours(25)
+    //     };
+    //     let helper = DefaultAlertHelper{};
+
+    //     let expected =
+    //     assert_eq!(expected, helper.get_alerts(&storage, &fm));
+    // }
 }

@@ -1,3 +1,4 @@
+pub mod alert;
 pub mod common;
 pub mod email_verification;
 pub mod fluid_meter;

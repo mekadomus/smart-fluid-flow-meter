@@ -1,8 +1,8 @@
+use crate::api::{alert::Alert, common::SortDirection};
+
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
-use crate::api::common::SortDirection;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR")] // Store as a string in the DB
@@ -56,4 +56,10 @@ pub struct FluidMetersInput {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CreateFluidMeterInput {
     pub name: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct FluidMeterAlerts {
+    pub meter: FluidMeter,
+    pub alerts: Vec<Alert>,
 }
