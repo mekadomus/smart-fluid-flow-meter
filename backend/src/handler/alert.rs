@@ -1,5 +1,5 @@
 use crate::{
-    api::{common::PaginatedRequest, health::Health},
+    api::{common::PaginatedRequest, fluid_meter::FluidMeterAlerts, health::Health},
     error::app_error::{bad_request, internal_error, AppError},
     json::extractor::Extractor,
     AppState,
@@ -7,12 +7,12 @@ use crate::{
 
 use axum::extract::State;
 use chrono::{Duration, NaiveDateTime, Utc};
+use std::collections::HashMap;
 use tracing::error;
 
 pub const ALERTS_MAX_FREQUENCY_MINS: &'static i64 = &20;
 pub const DT_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S%.f";
 pub const LAST_ALERTS_RUN_KEY: &'static str = "last-alerts-run";
-pub const MEASUREMENTS_PAGE_SIZE: &'static u8 = &10;
 pub const METERS_PAGE_SIZE: &'static u8 = &100;
 
 pub async fn trigger_alerts(State(state): State<AppState>) -> Result<Extractor<Health>, AppError> {
@@ -65,68 +65,54 @@ pub async fn trigger_alerts(State(state): State<AppState>) -> Result<Extractor<H
             break;
         }
 
+        // Key is the id of the owner
+        let mut alerts: HashMap<String, Vec<FluidMeterAlerts>> = HashMap::new();
+
         has_more = meters.pagination.has_more;
         options.page_cursor = Some(meters.items.last().unwrap().id.clone());
         for m in meters.items {
-            let since = Utc::now().naive_utc() - Duration::hours(2);
-            let measurements = match state
-                .storage
-                .get_measurements(m.id.clone(), since, *MEASUREMENTS_PAGE_SIZE as u32)
+            match state
+                .alert_helper
+                .get_alerts(state.storage.clone(), &m)
                 .await
             {
-                Ok(m) => m,
+                Ok(a) => {
+                    if alerts.contains_key(&m.owner_id) {
+                        alerts.get_mut(&m.owner_id).unwrap().push(a);
+                    } else {
+                        alerts.insert(m.owner_id, vec![a]);
+                    }
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+
+        for a in alerts {
+            let account = match state.storage.user_by_id(&a.0).await {
+                Ok(ac) => {
+                    if ac.is_none() {
+                        error!(
+                            "Meter assigned to account, but account not found. Account: {}",
+                            &a.0
+                        );
+                        return internal_error();
+                    }
+                    ac.unwrap()
+                }
                 Err(e) => {
                     error!("Error triggering alerts: {}", e);
                     return internal_error();
                 }
             };
 
-            if state.alert_helper.has_constant_flow(&measurements) {
-                let account = match state.storage.user_by_id(&m.owner_id).await {
-                    Ok(a) => {
-                        if a.is_none() {
-                            error!("Meter assigned to account, but account not found. Meter: {} Account: {}", &m.id, &m.owner_id);
-                            return internal_error();
-                        }
-                        a.unwrap()
-                    }
-                    Err(e) => {
-                        error!("Error triggering alerts: {}", e);
-                        return internal_error();
-                    }
-                };
-
-                if !state
-                    .mail_helper
-                    .constant_flow_alert(&state.settings, &account, &m)
-                    .await
-                {
-                    error!("Error sending alert e-mail for meter: {}", &m.id);
-                }
-            }
-
-            if state.alert_helper.isnt_reporting(&m, &measurements) {
-                let account = match state.storage.user_by_id(&m.owner_id).await {
-                    Ok(a) => {
-                        if a.is_none() {
-                            error!("Meter assigned to account, but account not found. Meter: {} Account: {}", &m.id, &m.owner_id);
-                            return internal_error();
-                        }
-                        a.unwrap()
-                    }
-                    Err(e) => {
-                        error!("Error triggering alerts: {}", e);
-                        return internal_error();
-                    }
-                };
-
-                if !state
-                    .mail_helper
-                    .not_reporting_alert(&state.settings, &account, &m)
-                    .await
-                {
-                    error!("Error sending alert e-mail for meter: {}", &m.id);
-                }
+            if !state
+                .mail_helper
+                .alerts(&state.settings, &account, &a.1)
+                .await
+            {
+                error!("Error sending alerts e-mail for user: {}", &a.0);
             }
         }
     }

@@ -188,3 +188,31 @@ pub async fn deactivate_fluid_meter(
         }
     }
 }
+
+// Show all alerts associated to a fluid meter
+// pub async fn get_fluid_meter_alerts(
+//     State(state): State<AppState>,
+//     Path(meter_id): Path<String>,
+//     user: Extension<User>,
+// ) -> Result<Extractor<FluidMeterAlerts>, AppError> {
+//     // if !state
+//     //     .user_helper
+//     //     .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+//     //     .await?
+//     // {
+//     //     return Err(AppError::ValidationError(vec![FailedValidation {
+//     //         field: "meter_id".to_string(),
+//     //         issue: Invalid,
+//     //     }]));
+//     // }
+//
+//     // match state.storage.deactivate_fluid_meter(&meter_id).await {
+//     //     Ok(_) => {
+//     //         return Ok(Extractor(()));
+//     //     }
+//     //     Err(e) => {
+//     //         error!("Error getting fluid meter: {}. Error: {}", meter_id, e);
+//     //         return internal_error();
+//     //     }
+//     // }
+// }
