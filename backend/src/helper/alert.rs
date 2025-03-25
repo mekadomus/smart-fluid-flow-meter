@@ -111,16 +111,21 @@ impl AlertHelper for DefaultAlertHelper {
 
 #[cfg(test)]
 mod tests {
-    use super::{AlertHelper, DefaultAlertHelper};
     use crate::{
-        api::fluid_meter::{
-            FluidMeter,
-            FluidMeterStatus::{Active, Inactive},
+        api::{
+            alert::{Alert, AlertType},
+            fluid_meter::{
+                FluidMeter, FluidMeterAlerts,
+                FluidMeterStatus::{Active, Inactive},
+            },
         },
-        helper::alert::Measurement,
+        helper::alert::{AlertHelper, DefaultAlertHelper, Measurement},
+        storage::mock::MockStorage,
     };
 
     use chrono::{Duration, Utc};
+    use mockall::predicate::{always, eq};
+    use std::sync::Arc;
 
     #[test]
     fn isnt_reporting_not_active() {
@@ -279,20 +284,40 @@ mod tests {
         assert!(helper.has_constant_flow(&v));
     }
 
-    // TODO
-    // #[test]
-    // fn get_alerts_success() {
-    //     let fm = FluidMeter{
-    //         id: "some_id".to_string(),
-    //         owner_id: "some_owner_id".to_string(),
-    //         name: "name".to_string(),
-    //         status: Active,
-    //         recorded_at: Utc::now().naive_utc(),
-    //         updated_at: Utc::now().naive_utc() - Duration::hours(25)
-    //     };
-    //     let helper = DefaultAlertHelper{};
+    #[tokio::test]
+    async fn get_alerts_success() {
+        let device_id = "dev_id";
+        let fm = FluidMeter {
+            id: device_id.to_string(),
+            owner_id: "some_owner_id".to_string(),
+            name: "name".to_string(),
+            status: Active,
+            recorded_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc() - Duration::hours(25),
+        };
 
-    //     let expected =
-    //     assert_eq!(expected, helper.get_alerts(&storage, &fm));
-    // }
+        let measurements = vec![Measurement {
+            id: "id".to_string(),
+            measurement: "1.0".to_string(),
+            device_id: "some_id".to_string(),
+            recorded_at: Utc::now().naive_utc() - Duration::hours(25),
+        }];
+        let mut storage = MockStorage::new();
+        storage
+            .expect_get_measurements()
+            .with(eq(device_id.to_string()), always(), eq(10))
+            .return_const(Ok(measurements));
+
+        let expected = FluidMeterAlerts {
+            meter: fm.clone(),
+            alerts: vec![Alert {
+                alert_type: AlertType::NotReporting,
+            }],
+        };
+        let helper = DefaultAlertHelper {};
+        assert_eq!(
+            expected,
+            helper.get_alerts(Arc::new(storage), &fm).await.unwrap()
+        );
+    }
 }

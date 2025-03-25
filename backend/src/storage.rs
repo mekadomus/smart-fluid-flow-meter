@@ -1,4 +1,5 @@
 pub mod error;
+pub mod mock;
 pub mod postgres;
 
 use crate::{

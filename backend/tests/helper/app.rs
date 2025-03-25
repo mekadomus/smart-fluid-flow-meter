@@ -38,16 +38,16 @@ pub async fn create_app_user_helper(user_helper: Arc<dyn UserHelper>) -> Router 
     .await;
 }
 
-// pub async fn create_app_mail_helper(mail_helper: Arc<dyn MailHelper>) -> Router {
-//     let authorizer = DefaultAuthorizer {};
-//     let user_helper = MockUserHelper::new();
-//     return create_app(
-//         Arc::new(authorizer),
-//         mail_helper.clone(),
-//         Arc::new(user_helper),
-//     )
-//     .await;
-// }
+pub async fn create_app_mail_helper(mail_helper: Arc<dyn MailHelper>) -> Router {
+    let authorizer = DefaultAuthorizer {};
+    let user_helper = MockUserHelper::new();
+    return create_app(
+        Arc::new(authorizer),
+        mail_helper.clone(),
+        Arc::new(user_helper),
+    )
+    .await;
+}
 
 pub async fn create_app_with_user(user_id: u16) -> Router {
     let user_helper = MockUserHelper::new();

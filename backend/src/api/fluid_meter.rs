@@ -58,7 +58,7 @@ pub struct CreateFluidMeterInput {
     pub name: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct FluidMeterAlerts {
     pub meter: FluidMeter,
     pub alerts: Vec<Alert>,
