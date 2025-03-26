@@ -2,7 +2,7 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { getContext, onMount } from 'svelte';
 
-  import type { FluidMeter } from '@api/FluidMeter';
+  import type { FluidMeterAlerts } from '@api/FluidMeter';
   import type { Message } from '@api/Message';
   import type { Series } from '@api/Common';
 
@@ -14,7 +14,7 @@
   type Props = {
     data: {
       series: Series;
-      meter_data: FluidMeter;
+      alerts: FluidMeterAlerts;
     };
   };
 
@@ -24,7 +24,7 @@
   };
 
   let props: Props = $props();
-  let meter_data = $state(props.data.meter_data);
+  let alerts = $state(props.data.alerts);
 
   // We are getting data per hour for the last month ordered from newest to oldest.
   // Let's convert it to data per day from oldest to newest
@@ -77,15 +77,15 @@
   async function toggleStatus() {
     let r = null;
     let newStatus = FluidMeterStatus.Active;
-    if (meter_data.status == FluidMeterStatus.Active) {
-      r = await deactivateFluidMeter(meter_data.id);
+    if (alerts.meter.status == FluidMeterStatus.Active) {
+      r = await deactivateFluidMeter(alerts.meter.id);
       newStatus = FluidMeterStatus.Inactive;
     } else {
-      r = await activateFluidMeter(meter_data.id);
+      r = await activateFluidMeter(alerts.meter.id);
     }
 
     if (r == 200) {
-      meter_data.status = newStatus;
+      alerts.meter.status = newStatus;
     } else {
       let message: Message = {
         type: MessageType.Error,
@@ -97,12 +97,20 @@
 </script>
 
 <div class="container">
-  <h1>{meter_data.name} ({meter_data.id})</h1>
-  <p><strong>Status</strong>: {meter_data.status}</p>
-  <div class="button-container">
-    <button class="button" onclick={() => toggleStatus()}
-      >{meter_data.status == FluidMeterStatus.Active ? 'Deactivate' : 'Activate'}</button
-    >
+  <h1>{alerts.meter.name} ({alerts.meter.id})</h1>
+  {#if alerts.alerts.length}
+    <div class="alerts">
+      <p><strong>Alerts</strong>:</p>
+      {#each alerts.alerts as a}
+        <span class="alert">{a.alert_type}</span>
+      {/each}
+    </div>
+  {/if}
+  <div class="st-container">
+    <p><strong>Status</strong>: {alerts.meter.status}</p>
+    <button class="button" onclick={() => toggleStatus()}>
+      {alerts.meter.status == FluidMeterStatus.Active ? 'Deactivate' : 'Activate'}
+    </button>
   </div>
   <p>Usage in the last 30 days</p>
   <div style="width: 800px;"><canvas id="usage"></canvas></div>
@@ -115,8 +123,38 @@
     width: 80%;
   }
 
-  .button-container {
-    width: 150px;
-    margin-bottom: 150px;
+  .st-container {
+    display: flex;
+  }
+
+  .button {
+    margin-left: 1rem;
+  }
+
+  .st-container p {
+    margin: 0;
+    line-height: 2rem;
+  }
+
+  .alerts {
+    display: flex;
+    margin-bottom: 1rem;
+  }
+
+  .alerts p {
+    line-height: 2rem;
+    margin: 0;
+    padding: 0;
+  }
+
+  .alert {
+    margin: 0 0.2rem;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 100px;
+    background: #e3342f;
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.8em;
   }
 </style>

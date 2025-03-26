@@ -1,3 +1,4 @@
+import type { Alert } from '@api/Alert';
 import type { ErrorResponse } from './Error';
 import type { PaginatedResponse, Series } from './Common';
 
@@ -21,6 +22,11 @@ export type FluidMeter = {
   recorded_at: Date;
 };
 
+export type FluidMeterAlerts = {
+  meter: FluidMeter;
+  alerts: Alert[];
+};
+
 export type CreateFluidMeterInput = {
   name: string;
 };
@@ -33,6 +39,17 @@ export async function getFluidMeter(
   meter_id: string
 ): Promise<FluidMeter | ErrorResponse> {
   const res = await httpGet(`/v1/fluid-meter/${meter_id}`, token);
+  return res.json();
+}
+
+/**
+ * Get all alerts for a fluid meter
+ */
+export async function getFluidMeterAlerts(
+  token: string,
+  meter_id: string
+): Promise<FluidMeterAlerts | ErrorResponse> {
+  const res = await httpGet(`/v1/fluid-meter/${meter_id}/alert`, token);
   return res.json();
 }
 
