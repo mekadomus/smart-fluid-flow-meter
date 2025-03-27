@@ -47,11 +47,13 @@ impl AlertHelper for DefaultAlertHelper {
             alerts: vec![],
         };
 
-        let since = Utc::now().naive_utc() - Duration::hours(2);
+        let now = Utc::now().naive_utc();
+        let since = now - Duration::hours(2);
         let measurements = match storage
             .get_measurements(
                 fluid_meter.id.clone(),
                 since,
+                now,
                 *MEASUREMENTS_PAGE_SIZE as u32,
             )
             .await
@@ -305,7 +307,7 @@ mod tests {
         let mut storage = MockStorage::new();
         storage
             .expect_get_measurements()
-            .with(eq(device_id.to_string()), always(), eq(10))
+            .with(eq(device_id.to_string()), always(), always(), eq(10))
             .return_const(Ok(measurements));
 
         let expected = FluidMeterAlerts {

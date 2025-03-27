@@ -1,6 +1,6 @@
 use smart_fluid_flow_meter_backend::{
     api::{
-        common::{Series, SeriesGranularity::Hour},
+        common::{Series, SeriesGranularity::Day},
         fluid_meter::{
             FluidMeter,
             FluidMeterStatus::{Active, Inactive},
@@ -278,6 +278,7 @@ async fn save_measurement_ignores_duplicate() {
         .get_measurements(
             DEVICE_ID2.to_string(),
             Utc::now().naive_utc() - Duration::minutes(60),
+            Utc::now().naive_utc(),
             10,
         )
         .await
@@ -347,6 +348,6 @@ async fn get_measurements_for_meter_success() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let resp: Series = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(resp.granularity, Hour);
+    assert_eq!(resp.granularity, Day);
     assert_eq!(resp.items.len(), 1);
 }

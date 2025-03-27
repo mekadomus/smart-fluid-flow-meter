@@ -49,10 +49,14 @@ pub trait MeasurementStorage {
     async fn save_measurement(&self, measurement: &Measurement) -> Result<Measurement, Error>;
     /// Returns list of measurements for a given device. Results are sorted by
     /// creation date, with the newest coming first
+    /// from - Returns measurements with a creation date higher to this date
+    /// to - Returns measurements with a creation date lower to this date
+    /// num_records - Max number of records to return
     async fn get_measurements(
         &self,
         device_id: String,
-        since: NaiveDateTime,
+        from: NaiveDateTime,
+        to: NaiveDateTime,
         num_records: u32,
     ) -> Result<Vec<Measurement>, Error>;
 }
