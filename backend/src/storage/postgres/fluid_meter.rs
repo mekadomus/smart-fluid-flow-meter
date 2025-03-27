@@ -8,7 +8,7 @@ use crate::{
         },
         fluid_meter::{
             FluidMeter,
-            FluidMeterStatus::{Active, Inactive},
+            FluidMeterStatus::{Active, Deleted, Inactive},
             FluidMetersInput, FluidMetersSort,
         },
     },
@@ -208,6 +208,22 @@ impl FluidMeterStorage for PostgresStorage {
                 return Err(Error {
                     code: ErrorCode::UndefinedError,
                 });
+            }
+        };
+    }
+
+    async fn delete_fluid_meter(&self, id: &str) -> Result<(), Error> {
+        debug!("delete_fluid_meter: {}", &id);
+        match sqlx::query("UPDATE fluid_meter SET status = $1 WHERE id = $2")
+            .bind(&Deleted)
+            .bind(&id)
+            .execute(&self.pool)
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                error!("Error deleting fluid meter: {}", e);
+                return undefined();
             }
         };
     }
