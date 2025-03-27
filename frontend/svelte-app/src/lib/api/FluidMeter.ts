@@ -4,7 +4,7 @@ import type { PaginatedResponse, Series } from './Common';
 
 import { PAGE_SIZE } from './Common';
 import { httpGet } from '../utils/Http';
-import { httpPostBrowser, httpGetBrowser } from '../utils/HttpClient';
+import { httpPostBrowser, httpGetBrowser, httpDeleteBrowser } from '../utils/HttpClient';
 
 export enum FluidMeterStatus {
   Active = 'Active',
@@ -58,6 +58,23 @@ export async function getFluidMeterAlerts(
  */
 export async function deactivateFluidMeter(meter_id: string): Promise<number> {
   const res = await httpPostBrowser(`/v1/fluid-meter/${meter_id}/deactivate`, {});
+
+  if (res && 'code' in res) {
+    if (res.code == 'InternalError') {
+      return 500;
+    } else {
+      return 400;
+    }
+  }
+
+  return 200;
+}
+
+/**
+ * Deletes a fluid meter
+ */
+export async function deleteFluidMeter(meter_id: string): Promise<number> {
+  const res = await httpDeleteBrowser(`/v1/fluid-meter/${meter_id}`);
 
   if (res && 'code' in res) {
     if (res.code == 'InternalError') {
