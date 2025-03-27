@@ -29,6 +29,7 @@ pub trait FluidMeterStorage {
         &self,
         options: &PaginatedRequest,
     ) -> Result<PaginatedResponse<FluidMeter>, Error>;
+    async fn delete_fluid_meter(&self, id: &str) -> Result<(), Error>;
     async fn get_fluid_meters(
         &self,
         user: &str,

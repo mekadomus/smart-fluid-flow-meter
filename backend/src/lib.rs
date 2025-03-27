@@ -14,7 +14,7 @@ use axum::{
     extract::FromRef,
     http::{header::HeaderValue, Method},
     middleware::{from_fn, from_fn_with_state},
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use std::sync::Arc;
@@ -28,8 +28,8 @@ use crate::{
     handler::{
         alert::trigger_alerts,
         fluid_meter::{
-            activate_fluid_meter, create_fluid_meter, deactivate_fluid_meter, fluid_meters,
-            get_fluid_meter, get_fluid_meter_alerts,
+            activate_fluid_meter, create_fluid_meter, deactivate_fluid_meter, delete_fluid_meter,
+            fluid_meters, get_fluid_meter, get_fluid_meter_alerts,
         },
         health::health_check,
         measurement::{get_measurements_for_meter, save_measurement},
@@ -124,6 +124,7 @@ pub async fn app(
         // Fluid meters
         .route("/v1/fluid-meter", get(fluid_meters))
         .route("/v1/fluid-meter", post(create_fluid_meter))
+        .route("/v1/fluid-meter/{meter_id}", delete(delete_fluid_meter))
         .route("/v1/fluid-meter/{meter_id}", get(get_fluid_meter))
         .route(
             "/v1/fluid-meter/{meter_id}/activate",

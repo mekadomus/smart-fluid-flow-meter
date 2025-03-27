@@ -102,6 +102,34 @@ pub async fn create_fluid_meter(
     return Ok(Extractor(meter));
 }
 
+/// Deletes a meter
+pub async fn delete_fluid_meter(
+    State(state): State<AppState>,
+    Path(meter_id): Path<String>,
+    user: Extension<User>,
+) -> Result<Extractor<()>, AppError> {
+    if !state
+        .user_helper
+        .owns_fluid_meter(state.storage.clone(), &user.id, &meter_id)
+        .await?
+    {
+        return Err(AppError::ValidationError(vec![FailedValidation {
+            field: "meter_id".to_string(),
+            issue: Invalid,
+        }]));
+    }
+
+    match state.storage.delete_fluid_meter(&meter_id).await {
+        Ok(_) => {
+            return Ok(Extractor(()));
+        }
+        Err(e) => {
+            error!("Error deleting fluid meter: {}. Error: {}", meter_id, e);
+            return internal_error();
+        }
+    }
+}
+
 /// Gets information about a specific fluid meter
 pub async fn get_fluid_meter(
     State(state): State<AppState>,
