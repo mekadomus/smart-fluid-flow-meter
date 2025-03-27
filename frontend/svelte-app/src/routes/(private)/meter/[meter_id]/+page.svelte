@@ -1,13 +1,20 @@
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   import { getContext, onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
   import type { FluidMeterAlerts } from '@api/FluidMeter';
   import type { Message } from '@api/Message';
   import type { Series } from '@api/Common';
 
-  import { FluidMeterStatus, activateFluidMeter, deactivateFluidMeter } from '@api/FluidMeter';
+  import {
+    FluidMeterStatus,
+    activateFluidMeter,
+    deactivateFluidMeter,
+    deleteFluidMeter
+  } from '@api/FluidMeter';
   import { MessageType } from '@api/Message';
+  import MdModal from '@components/MdModal.svelte';
 
   const globalMessages: SvelteMap<string, Message> = getContext('globalMessages');
 
@@ -25,6 +32,7 @@
 
   let props: Props = $props();
   let alerts = $state(props.data.alerts);
+  let showDeleteModal = $state(false);
 
   // We are getting data per hour for the last month ordered from newest to oldest.
   // Let's convert it to data per day from oldest to newest
@@ -94,10 +102,47 @@
       globalMessages.set('status-change-error', message);
     }
   }
+
+  function confirmDelete() {
+    showDeleteModal = true;
+  }
+
+  function cancelDelete() {
+    showDeleteModal = false;
+  }
+
+  async function doDelete() {
+    if ((await deleteFluidMeter(alerts.meter.id)) == 200) {
+      let message: Message = {
+        type: MessageType.Success,
+        text: 'Meter deleted'
+      };
+      globalMessages.set('delete-meter-success', message);
+      goto('/dashboard');
+    } else {
+      let message: Message = {
+        type: MessageType.Error,
+        text: 'Sorry. We failed to delete the meter.'
+      };
+      globalMessages.set('delete-meter-error', message);
+    }
+  }
 </script>
 
 <div class="container">
-  <h1>{alerts.meter.name} ({alerts.meter.id})</h1>
+  <div class={showDeleteModal ? '' : 'hidden'}>
+    <MdModal closeCallback={cancelDelete}>
+      <h2>Are you sure you wan't to delete this meter?</h2>
+      <div class="title">
+        <button class="button" onclick={() => doDelete()}>Delete</button>
+        <button class="button" onclick={() => cancelDelete()}>Don't delete</button>
+      </div>
+    </MdModal>
+  </div>
+  <div class="title">
+    <h1>{alerts.meter.name} ({alerts.meter.id})</h1>
+    <button class="button2" onclick={() => confirmDelete()}>Delete</button>
+  </div>
   {#if alerts.alerts.length}
     <div class="alerts">
       <p><strong>Alerts</strong>:</p>
@@ -123,8 +168,16 @@
     width: 80%;
   }
 
-  .st-container {
+  .alerts,
+  .st-container,
+  .title {
     display: flex;
+  }
+
+  .title button {
+    margin: 0 1rem;
+    height: 2rem;
+    align-self: center;
   }
 
   .button {
@@ -137,7 +190,6 @@
   }
 
   .alerts {
-    display: flex;
     margin-bottom: 1rem;
   }
 
