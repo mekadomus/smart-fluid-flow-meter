@@ -65,9 +65,13 @@ async fn get_fluid_meters_filters() {
     fluid_meter_3.id = (user_id + 2).to_string();
     fluid_meter_3.name = "garage".to_string();
     fluid_meter_3.status = FluidMeterStatus::Inactive;
+    let mut fluid_meter_4 = fluid_meter_1.clone();
+    fluid_meter_4.id = (user_id + 3).to_string();
+    fluid_meter_4.status = FluidMeterStatus::Deleted;
     assert!(storage.insert_fluid_meter(&fluid_meter_1).await.is_ok());
     assert!(storage.insert_fluid_meter(&fluid_meter_2).await.is_ok());
     assert!(storage.insert_fluid_meter(&fluid_meter_3).await.is_ok());
+    assert!(storage.insert_fluid_meter(&fluid_meter_4).await.is_ok());
 
     let response = app
         .clone()
