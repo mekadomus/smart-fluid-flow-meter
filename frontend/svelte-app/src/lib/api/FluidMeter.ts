@@ -1,6 +1,6 @@
 import type { Alert } from '@api/Alert';
 import type { ErrorResponse } from './Error';
-import type { PaginatedResponse, Series } from './Common';
+import type { PaginatedResponse, Series, SeriesGranularity } from './Common';
 
 import { PAGE_SIZE } from './Common';
 import { httpGet } from '../utils/Http';
@@ -137,13 +137,34 @@ export async function createFluidMeter(
  */
 export async function getMeasurements(
   token: string,
-  meter: string
+  meter: string,
+  granularity: SeriesGranularity,
+  day: Date | null
 ): Promise<Series | ErrorResponse> {
-  const res = await httpGet(`/v1/fluid-meter/${meter}/measurement`, token);
+  let url = `/v1/fluid-meter/${meter}/measurement?granularity=${granularity}`;
+  if (day) {
+    url += `&day=${day}`;
+  }
+  const res = await httpGet(url, token);
   return res.json().catch(() => {
     return {
       code: 'InternalError',
       message: 'We encountered an error'
     };
   });
+}
+
+/**
+ * Get the measurements for the given meter
+ */
+export async function getMeasurementsBrowser(
+  meter: string,
+  granularity: SeriesGranularity,
+  day: Date | null
+): Promise<Series | ErrorResponse> {
+  let url = `/v1/fluid-meter/${meter}/measurement?granularity=${granularity}`;
+  if (day) {
+    url += `&day=${day.toISOString().split('T')[0]}`;
+  }
+  return await httpGetBrowser(url);
 }

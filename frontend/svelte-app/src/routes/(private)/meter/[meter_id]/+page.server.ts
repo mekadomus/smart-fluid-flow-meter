@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 
 import { AuthorizationCookie } from '@utils/Constants';
 import { getMeasurements, getFluidMeterAlerts } from '@api/FluidMeter';
+import { SeriesGranularity } from '@api/Common';
 
 export const load: PageServerLoad = async ({ params, cookies }) => {
   const token = cookies.get(AuthorizationCookie);
@@ -12,7 +13,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
     };
   }
   const [series, alerts] = await Promise.all([
-    await getMeasurements(token, params.meter_id),
+    await getMeasurements(token, params.meter_id, SeriesGranularity.Day, null),
     await getFluidMeterAlerts(token, params.meter_id)
   ]);
 
