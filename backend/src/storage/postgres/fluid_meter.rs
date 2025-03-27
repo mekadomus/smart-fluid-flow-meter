@@ -114,7 +114,7 @@ impl FluidMeterStorage for PostgresStorage {
 
         let status_filter = match &options.status {
             Some(s) => format!("AND status = '{}'", s),
-            None => "".to_string(),
+            None => format!("AND status != '{}'", Deleted),
         };
 
         match options.page_cursor.clone() {
