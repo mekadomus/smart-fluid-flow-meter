@@ -28,7 +28,6 @@ mock! {
         async fn activate_fluid_meter(&self, meter_id: &str) -> Result<(), Error>;
         async fn deactivate_fluid_meter(&self, meter_id: &str) -> Result<(), Error>;
         async fn delete_fluid_meter(&self, id: &str) -> Result<(), Error>;
-        /// Return a paginated list of active fluid meters for all accounts
         async fn get_active_fluid_meters(
             &self,
             options: &PaginatedRequest,
@@ -50,12 +49,11 @@ mock! {
     #[async_trait]
     impl MeasurementStorage for Storage {
         async fn save_measurement(&self, measurement: &Measurement) -> Result<Measurement, Error>;
-        /// Returns list of measurements for a given device. Results are sorted by
-        /// creation date, with the newest coming first
         async fn get_measurements(
             &self,
             device_id: String,
-            since: NaiveDateTime,
+            from: NaiveDateTime,
+            to: NaiveDateTime,
             num_records: u32,
         ) -> Result<Vec<Measurement>, Error>;
     }

@@ -87,7 +87,8 @@ impl MeasurementStorage for PostgresStorage {
     async fn get_measurements(
         &self,
         device_id: String,
-        since: NaiveDateTime,
+        from: NaiveDateTime,
+        to: NaiveDateTime,
         num_records: u32,
     ) -> Result<Vec<Measurement>, Error> {
         match sqlx::query_as(
@@ -100,14 +101,16 @@ impl MeasurementStorage for PostgresStorage {
             FROM measurement
             WHERE
                 device_id = $1 AND
-                recorded_at >= $2
+                recorded_at >= $2 AND
+                recorded_at <= $3
             ORDER BY
                 recorded_at DESC
-            LIMIT $3
+            LIMIT $4
         "#,
         )
         .bind(device_id.clone())
-        .bind(since)
+        .bind(from)
+        .bind(to)
         .bind(num_records as i32)
         .fetch_all(&self.pool)
         .await
