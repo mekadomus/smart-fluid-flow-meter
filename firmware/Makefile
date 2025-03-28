@@ -1,53 +1,53 @@
 image:
-	@docker build -f dockerfiles/dev -t smart-fluid-flow-meter-esp32-image .
+	@docker build -f dockerfiles/dev -t smart-fluid-flow-meter-firmware-image .
 .PHONY: image
 
 build: image
 	@docker run -it --rm \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		idf.py build
 .PHONY: build
 
 upload: build
 	@docker run --rm --device /dev/ttyUSB0:/dev/ttyUSB0 \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		idf.py -p /dev/ttyUSB0 flash
 .PHONY: upload
 
 serial:
 	@docker run -it --rm --device /dev/ttyUSB0:/dev/ttyUSB0 \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		idf.py -p /dev/ttyUSB0 monitor
 .PHONY: serial
 
 ssh-connected:
 	@docker run -it --rm \
 		--device /dev/ttyUSB0:/dev/ttyUSB0 \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		bash
 .PHONY: ssh-connected
 
 ssh:
 	@docker run -it --rm \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		bash
 .PHONY: ssh
 
 format: build
 	@docker run -it --rm \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		sh -c " \
 			(find main/ \
 				-path 'main/test/build' -prune -o \
@@ -61,9 +61,9 @@ format: build
 
 check-format: build
 	@docker run -it --rm \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		sh -c " \
 			(find main/ \
 				-path 'main/test/build' -prune -o \
@@ -77,12 +77,12 @@ check-format: build
 
 test: image
 	@docker run -it --rm \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-image \
 		sh -c " \
-			mkdir -p /esp32/main/test/build && \
-			cd /esp32/main/test/build && \
+			mkdir -p /firmware/main/test/build && \
+			cd /firmware/main/test/build && \
 			cmake .. && \
 			make && \
 			./test \
@@ -94,11 +94,11 @@ verify: build check-format test
 
 # Starts a container with a neovim development environment ready to use
 vim: build
-	@docker build -f dockerfiles/dev-vim -t smart-fluid-flow-meter-esp32-vim-image .
+	@docker build -f dockerfiles/dev-vim -t smart-fluid-flow-meter-firmware-vim-image .
 	@docker run --rm -it \
 		-v $(PWD)/dev-environments/vim/tmp:/root/.local/share/nvim \
-		-v $(PWD)/src:/esp32 \
-		-w /esp32 \
-		smart-fluid-flow-meter-esp32-vim-image \
+		-v $(PWD)/src:/firmware \
+		-w /firmware \
+		smart-fluid-flow-meter-firmware-vim-image \
 		nvim
 .PHONY: vim

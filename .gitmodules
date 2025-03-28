@@ -1,6 +1,6 @@
-[submodule "esp32/src/components/esp-idf-wifi-manager"]
-	path = esp32/src/components/esp-idf-wifi-manager
+[submodule "firmware/src/components/esp-idf-wifi-manager"]
+	path = firmware/src/components/esp-idf-wifi-manager
 	url = https://github.com/soonick/esp-idf-wifi-manager.git
-[submodule "esp32/src/main/test/mock/esp-idf-mocks"]
-	path = esp32/src/main/test/mock/esp-idf-mocks
+[submodule "firmware/src/main/test/mock/esp-idf-mocks"]
+	path = firmware/src/main/test/mock/esp-idf-mocks
 	url = https://github.com/soonick/esp-idf-mocks.git

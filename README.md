@@ -6,9 +6,9 @@ Hardware and software for a system that monitors flow of fluids (most likely wat
 
 - [backend](/backend/) - Contains the back end server where measurements will be posted
 - [case](/case/) - 3d model of the PCB case
-- [esp32](/esp32/) - The ESP32 code that takes care of reading the sensor and posting measurements to the back-end
+- [firmware](/firmware/) - The firmware code that takes care of reading the sensor and posting measurements to the back-end
 - [frontend](/frontend/) - The front end that can be used to manage accounts and devices
-- [kicad](/kicad/) - Electronic circuit schematic
+- [electronics](/electronics/) - Electronic circuit schematic and pcb
 
 ## User documentation
 
@@ -23,7 +23,7 @@ Hardware and software for a system that monitors flow of fluids (most likely wat
 
 ### Configuration
 
-When the device is in factory settings (Green, yellow and red LEDs on), the ESP32 will start an access point named `my-esp32-ssid`. Connect to the access point using the password `APassword`.
+When the device is in factory settings (Green, yellow and red LEDs on), the firmware will start an access point named `my-esp32-ssid`. Connect to the access point using the password `APassword`.
 
 Once connected, navigate to the url: `sffm.mekadomus.com`. You should get a screen like the following:
 

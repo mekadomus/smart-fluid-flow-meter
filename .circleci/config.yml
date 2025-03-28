@@ -19,7 +19,7 @@ jobs:
            - "SHA256:D5v5W7Cgjwp7YRMC+tmGu5h73CSzGBG/UbwgLMUs7/w"
       - checkout
       - run: cd frontend && cp .env.sample .env && make verify
-  esp32:
+  firmware:
     machine:
       image: ubuntu-2204:2023.04.2
     steps:
@@ -28,7 +28,7 @@ jobs:
            - "SHA256:D5v5W7Cgjwp7YRMC+tmGu5h73CSzGBG/UbwgLMUs7/w"
       - checkout
       - run: git submodule update --init --recursive
-      - run: cd esp32 && make verify
+      - run: cd firmware && make verify
   tag:
     machine:
       image: ubuntu-2204:2023.04.2
@@ -63,12 +63,12 @@ workflows:
     jobs:
       - backend
       - frontend
-      - esp32
+      - firmware
       - tag:
           requires:
             - backend
             - frontend
-            - esp32
+            - firmware
           filters:
             branches:
               only: master

@@ -9,7 +9,7 @@ RUN apt-get update && \
 WORKDIR /
 RUN git clone --depth=1 -b v5.3.1 --recurse-submodules --shallow-submodules https://github.com/espressif/esp-idf.git
 WORKDIR /esp-idf
-RUN ./install.sh esp32
+RUN ./install.sh firmware
 ENV IDF_PATH="/esp-idf"
 
 # Terminal customizations
