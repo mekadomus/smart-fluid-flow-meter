@@ -10,10 +10,10 @@ export type PaginatedResponse<T> = {
   pagination: Pagination;
 };
 
-enum SeriesGranularity {
-  Hour,
-  Day,
-  Month
+export enum SeriesGranularity {
+  Hour = 'Hour',
+  Day = 'Day',
+  Month = 'Month'
 }
 
 export type SeriesItem = {
