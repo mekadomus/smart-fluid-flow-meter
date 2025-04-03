@@ -4,10 +4,8 @@
 
 Hardware and software for a system that monitors flow of fluids (most likely water) and reports it to a back-end that can emit alerts based on configured preferences.
 
-- [backend](/backend/) - Contains the back end server where measurements will be posted
 - [case](/case/) - 3d model of the PCB case
 - [firmware](/firmware/) - The firmware code that takes care of reading the sensor and posting measurements to the back-end
-- [frontend](/frontend/) - The front end that can be used to manage accounts and devices
 - [electronics](/electronics/) - Electronic circuit schematic and pcb
 
 ## User documentation

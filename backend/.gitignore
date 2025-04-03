@@ -1,5 +1,0 @@
-.env
-/build
-/dev-environments/vim/tmp/
-/target
-service-account-key.json
