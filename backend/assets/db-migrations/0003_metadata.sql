@@ -1,5 +1,0 @@
-CREATE TABLE metadata (
-  key VARCHAR(100) NOT NULL,
-  value VARCHAR(255) NOT NULL,
-  PRIMARY KEY(key)
-);
