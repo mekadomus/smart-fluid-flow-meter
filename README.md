@@ -26,12 +26,11 @@ When the device is in factory settings (Green, yellow and red LEDs on), the firm
 Once connected, navigate to the url: `sffm.mekadomus.com`. You should get a screen like the following:
 
 ![Configure device screen](/docs/assets/config-screen.png)
-<config screen>
 
 Fill the data as follows:
 - *Wifi Network* - The name of the network the device will connect to
 - *Wifi Password* - The password for the given SSID
-- *Device key* - The unique identifier for this device. This ID will be validated by the backend, so it must be a valid one
+- *Device key* - The unique identifier for this device. This ID must match the ID of a device created at the backend ([https://console.mekadomus.com](https://console.mekadomus.com))
 
 After submitting the form, you should get the following confirmation screen:
 
