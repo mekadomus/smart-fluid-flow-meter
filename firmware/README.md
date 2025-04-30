@@ -14,6 +14,12 @@ cp sdkconfig.sample src/sdkconfig.defaults
 
 And then update `src/sdkconfig.defaults` as desired
 
+## Update git submodules
+
+```
+git submodule update --init --recursive
+```
+
 ## Compile
 
 To generate a docker image and build the code:
