@@ -95,7 +95,9 @@ verify: build check-format test
 # Starts a container with a neovim development environment ready to use
 vim: build
 	@docker build -f dockerfiles/dev-vim -t smart-fluid-flow-meter-firmware-vim-image .
+	@xhost +local:docker
 	@docker run --rm -it \
+		-e DISPLAY=$(DISPLAY) -v /tmp/.X11-unix:/tmp/.X11-unix \
 		-v $(PWD)/dev-environments/vim/tmp:/root/.local/share/nvim \
 		-v $(PWD)/src:/firmware \
 		-w /firmware \
