@@ -1,7 +1,21 @@
-menu "Backend URL"
+menu "Smart Fluid Flow Meter"
+
 config BACKEND_URL
         string "Backend URL"
         default ""
         help
             The URL the measurements will be posted to
+
+choice SENSOR_MODEL
+    prompt "Select sensor model"
+    default SENSOR_YF_S201
+
+config SENSOR_YF_S201
+    bool "Sensor model: YF-S201"
+
+config SENSOR_FS400A
+    bool "Sensor model: FS400A G1\""
+
+endchoice
+
 endmenu

@@ -28,9 +28,13 @@ class FluidMeter {
 
  private:
   const gpio_num_t meter_pin;
-  const float conversion_factor;
 
   static FluidMeter* instance;
+
+  /**
+   * This can be configured with the CONFIG_SENSOR_... configurations
+   */
+  static float conversion_factor;
 
   /**
    * It should only be modified from the queue task

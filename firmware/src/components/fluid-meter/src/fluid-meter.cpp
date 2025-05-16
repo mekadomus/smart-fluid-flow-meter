@@ -1,13 +1,20 @@
 #include "fluid-meter.hpp"
 
 #include <driver/gpio.h>
+#include <esp_log.h>
 
 int FluidMeter::total_pulses = 0;
 FluidMeter* FluidMeter::instance = nullptr;
 QueueHandle_t FluidMeter::queue;
+// The conversion factor varies depending on the sensor being used
+#if CONFIG_SENSOR_YF_S201
+float FluidMeter::conversion_factor = 690;
+#elif CONFIG_SENSOR_FS400A
+// TODO: Update this value after experimenting
+float FlFluidMeter::conversion_factor = 1;
+#endif
 
-FluidMeter::FluidMeter(const gpio_num_t pin)
-    : meter_pin{pin}, conversion_factor{690} {
+FluidMeter::FluidMeter(const gpio_num_t pin) : meter_pin{pin} {
   queue = xQueueCreate(10, sizeof(char));
   xTaskCreate(queue_task, "queue_task", 2048, NULL, 10, NULL);
 
