@@ -18,7 +18,7 @@ Una vez conectado, visita la dirección `sffm.mekadomus.com`. Verás una página
 ![Configure device screen](/docs/assets/config-screen.png)
 
 Llena los datos:
-- *Red* - El nombre de la red al que se conectará el dispositivo
+- *Red* - El nombre de la red al que se conectará el dispositivo (Solo soporta redes 2.4G)
 - *Contraseña* - Contraseña de la red seleccionada
 - *ID del medidor* - Identificador para este dispositivo. Debe ser igual a un ID creado desde el panel de control: ([https://console.mekadomus.com](https://console.mekadomus.com))
 

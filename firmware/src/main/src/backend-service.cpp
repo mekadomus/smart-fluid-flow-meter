@@ -149,7 +149,11 @@ void BackendService::wifi_disconnected_handler(void* arg,
   (void)event_id;
   (void)event_data;
 
-  ESP_LOGI(TAG, "Wifi disconnected");
+  wifi_event_sta_disconnected_t* event =
+      (wifi_event_sta_disconnected_t*)event_data;
+  ESP_LOGI(TAG, "WiFi disconnected. Reason: %d, SSID: %s", event->reason,
+           event->ssid);
+
   xSemaphoreGive(IP_SEMPH);
 }
 
@@ -171,7 +175,7 @@ void BackendService::init_wifi() {
   wifi_config_t wifi_config = {};
   snprintf((char*)wifi_config.sta.ssid, 32, "%s", ssid);
   snprintf((char*)wifi_config.sta.password, 32, "%s", password);
-  ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
+  ESP_LOGI(TAG, "Connecting to %s ...", wifi_config.sta.ssid);
   esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
 
   ESP_ERROR_CHECK(esp_event_handler_register(
@@ -180,7 +184,23 @@ void BackendService::init_wifi() {
       WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
       &BackendService::wifi_disconnected_handler, NULL));
 
-  esp_wifi_connect();
+  esp_err_t err = esp_wifi_connect();
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "WiFi connect failed: %s", esp_err_to_name(err));
+  }
+
+  int connected = 0;
+  for (int i = 0; i < 20 && !connected; i++) {  // 10 second timeout
+    wifi_ap_record_t ap_info;
+    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+      connected = 1;
+      ESP_LOGW(TAG, "Connected to AP: %s, RSSI: %d", ap_info.ssid,
+               ap_info.rssi);
+    } else {
+      ESP_LOGW(TAG, "Not connected to AP");
+    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+  }
 
   xSemaphoreTake(IP_SEMPH, portMAX_DELAY);
 }
