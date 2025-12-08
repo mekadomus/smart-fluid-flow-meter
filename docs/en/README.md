@@ -18,7 +18,7 @@ Once connected, navigate to the url: `sffm.mekadomus.com`. You should get a scre
 ![Configure device screen](/docs/assets/config-screen.png)
 
 Fill the data as follows:
-- *Wifi Network* - The name of the network the device will connect to
+- *Wifi Network* - The name of the network the device will connect to (Only supports 2.4G networks)
 - *Wifi Password* - The password for the given SSID
 - *Device key* - The unique identifier for this device. This ID must match the ID of a device created at the backend ([https://console.mekadomus.com](https://console.mekadomus.com))
 
